@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=5.1.4">
+
+
+
+
+
+
+
+  <meta name="keywords" content="Spring,">
+
+
+
+
+
+  <link rel="alternate" href="/atom.xml" title="阮树斌 | 技术改变生活" type="application/atom+xml">
+
+
+
+
+
+
+<meta name="description" content="引言Spring提供了两种容器类型:  BeanFactory ApplicationContext  其中ApplicationContext间接继承自BeanFactory，两者最大的不同是容器初始化策略。  BeanFactory采用懒加载(lazy-load)策略，即当客户端需要访问容器内的某个对象时，才对该对象进行初始化以及依赖注入操作。所以该模式下，启动速度较快，适用于资源有限，对功能">
+<meta name="keywords" content="Spring">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Spring容器之BeanFactory">
+<meta property="og:url" content="http://ruanshubin.top/2019/06/04/Spring容器之BeanFactory/index.html">
+<meta property="og:site_name" content="阮树斌 | 技术改变生活">
+<meta property="og:description" content="引言Spring提供了两种容器类型:  BeanFactory ApplicationContext  其中ApplicationContext间接继承自BeanFactory，两者最大的不同是容器初始化策略。  BeanFactory采用懒加载(lazy-load)策略，即当客户端需要访问容器内的某个对象时，才对该对象进行初始化以及依赖注入操作。所以该模式下，启动速度较快，适用于资源有限，对功能">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="https://upload-images.jianshu.io/upload_images/10431632-2f02b4786e216d53.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240">
+<meta property="og:image" content="https://upload-images.jianshu.io/upload_images/10431632-75998e61a573ee13.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240">
+<meta property="og:image" content="https://upload-images.jianshu.io/upload_images/10431632-0ba6413fc1f28afd.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240">
+<meta property="og:image" content="https://upload-images.jianshu.io/upload_images/10431632-029d5f6e090a5f82.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240">
+<meta property="og:image" content="https://upload-images.jianshu.io/upload_images/10431632-86426e609c966a5e.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240">
+<meta property="og:updated_time" content="2019-09-16T01:37:16.330Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Spring容器之BeanFactory">
+<meta name="twitter:description" content="引言Spring提供了两种容器类型:  BeanFactory ApplicationContext  其中ApplicationContext间接继承自BeanFactory，两者最大的不同是容器初始化策略。  BeanFactory采用懒加载(lazy-load)策略，即当客户端需要访问容器内的某个对象时，才对该对象进行初始化以及依赖注入操作。所以该模式下，启动速度较快，适用于资源有限，对功能">
+<meta name="twitter:image" content="https://upload-images.jianshu.io/upload_images/10431632-2f02b4786e216d53.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://ruanshubin.top/2019/06/04/Spring容器之BeanFactory/">
+
+
+
+
+
+  <title>Spring容器之BeanFactory | 阮树斌 | 技术改变生活</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+
+   <canvas class="fireworks" style="position: fixed;left: 0;top: 0;z-index: 1; pointer-events: none;"></canvas> 
+   <script type="text/javascript" src="//cdn.bootcss.com/animejs/2.2.0/anime.min.js"></script> 
+   <script type="text/javascript" src="/js/src/fireworks.js"></script>
+
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+	<a href="https://github.com/Ruanshubin" class="github-corner" aria-label="View source on Github">
+	<svg width="80" height="80" viewbox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true">
+	<path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"/>
+	<path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"/>
+	<path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"/>
+	</svg>
+	</a>
+	<style>
+	.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}
+	</style>
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">阮树斌 | 技术改变生活</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">交通 | 数据 | 算法 <br> Java | Python | Scala | Matlab | GIS</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-首页">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-分类">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br>
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-归档">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-标签">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-关于">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br>
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+	
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://ruanshubin.top/2019/06/04/Spring容器之BeanFactory/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Ruan Shubin">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="阮树斌 | 技术改变生活">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Spring容器之BeanFactory</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-06-04T21:08:00+08:00">
+                2019-06-04
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Spring/" itemprop="url" rel="index">
+                    <span itemprop="name">Spring</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-wordcount">
+              
+                
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">字数统计&#58;</span>
+                
+                <span title="字数统计">
+                  3.1k 字
+                </span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">
+                  14 分钟
+                </span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>Spring提供了两种容器类型:</p>
+<ul>
+<li>BeanFactory</li>
+<li>ApplicationContext</li>
+</ul>
+<p>其中ApplicationContext间接继承自BeanFactory，两者最大的不同是容器初始化策略。</p>
+<p><img src="https://upload-images.jianshu.io/upload_images/10431632-2f02b4786e216d53.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt=""></p>
+<p>BeanFactory采用懒加载(lazy-load)策略，即当客户端需要访问容器内的某个对象时，才对该对象进行初始化以及依赖注入操作。所以该模式下，启动速度较快，适用于资源有限，对功能要求不是很严格的场景。</p>
+<p>ApplicationContext所管理的对象，默认启动之后全部初始化并绑定完成，故启动速度较慢，但其除了拥有BeanFactory的所有支持，还提供事件发布、国际化信息支持等，所以适用于系统资源充足，并且要求更多功能的场景。</p>
+<p><strong>本文首先讲解BeanFactory。</strong></p>
+<h2 id="BeanFactory、BeanDefinitionRegistry和Bean的关系"><a href="#BeanFactory、BeanDefinitionRegistry和Bean的关系" class="headerlink" title="BeanFactory、BeanDefinitionRegistry和Bean的关系"></a>BeanFactory、BeanDefinitionRegistry和Bean的关系</h2><p>BeanFactory主要完成2项工作:</p>
+<ul>
+<li>业务对象的初始化及注册；</li>
+<li>对象间依赖关系的绑定。</li>
+</ul>
+<p>看一下BeanFactory的源码：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">public interface BeanFactory &#123;</span><br><span class="line">    String FACTORY_BEAN_PREFIX = &quot;&amp;&quot;;</span><br><span class="line"></span><br><span class="line">    Object getBean(String var1) throws BeansException;</span><br><span class="line"></span><br><span class="line">    &lt;T&gt; T getBean(String var1, @Nullable Class&lt;T&gt; var2) throws BeansException;</span><br><span class="line"></span><br><span class="line">    Object getBean(String var1, Object... var2) throws BeansException;</span><br><span class="line"></span><br><span class="line">    &lt;T&gt; T getBean(Class&lt;T&gt; var1) throws BeansException;</span><br><span class="line"></span><br><span class="line">    &lt;T&gt; T getBean(Class&lt;T&gt; var1, Object... var2) throws BeansException;</span><br><span class="line"></span><br><span class="line">    boolean containsBean(String var1);</span><br><span class="line"></span><br><span class="line">    boolean isSingleton(String var1) throws NoSuchBeanDefinitionException;</span><br><span class="line"></span><br><span class="line">    boolean isPrototype(String var1) throws NoSuchBeanDefinitionException;</span><br><span class="line"></span><br><span class="line">    boolean isTypeMatch(String var1, ResolvableType var2) throws NoSuchBeanDefinitionException;</span><br><span class="line"></span><br><span class="line">    boolean isTypeMatch(String var1, @Nullable Class&lt;?&gt; var2) throws NoSuchBeanDefinitionException;</span><br><span class="line"></span><br><span class="line">    @Nullable</span><br><span class="line">    Class&lt;?&gt; getType(String var1) throws NoSuchBeanDefinitionException;</span><br><span class="line"></span><br><span class="line">    String[] getAliases(String var1);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以发现，BeanFactory接口只定义了查询相关的方法，例如: 取得某个对象的方法（getBean）、查询某个对象是否存在于容器中的方法（containsBean），或者取得某个bean的状态或者类型的方法等。</p>
+<p>而对象的注册管理及依赖绑定则交给BeanFactory的接口实现类来完成，如常见的DefaultListableBeanFactory。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">public class DefaultListableBeanFactory </span><br><span class="line">	extends AbstractAutowireCapableBeanFactory </span><br><span class="line">	implements ConfigurableListableBeanFactory, BeanDefinitionRegistry, Serializable &#123;</span><br><span class="line">	...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>DefaultListableBeanFactory还实现了BeanDefinitionRegistry接口，来完成Bean的注册管理。</p>
+<p>简单阐释一下BeanFactory、BeanDefinitionRegistry和Bean的关系：</p>
+<p>Bean是图书，BeanFactory相当于图书馆，而BeanDefinitionRegistry则相当于图书馆的书架。虽然还书和借书均是跟图书馆(BeanFactory)打交道，但是图书馆实际存储书的地方是书架(BeanDefinitionRegistry)。</p>
+<p>每个Bean交给BeanFactory管理时，均会包装成BeanDefination接口的实例，BeanDefination实例负责保存Bean所有必要的信息，包括Class类型、是否是抽象类、构造方法参数及其他属性等。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br></pre></td><td class="code"><pre><span class="line">public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement &#123;</span><br><span class="line">    String SCOPE_SINGLETON = &quot;singleton&quot;;</span><br><span class="line">    String SCOPE_PROTOTYPE = &quot;prototype&quot;;</span><br><span class="line">    int ROLE_APPLICATION = 0;</span><br><span class="line">    int ROLE_SUPPORT = 1;</span><br><span class="line">    int ROLE_INFRASTRUCTURE = 2;</span><br><span class="line"></span><br><span class="line">    void setParentName(@Nullable String var1);</span><br><span class="line"></span><br><span class="line">    @Nullable</span><br><span class="line">    String getParentName();</span><br><span class="line"></span><br><span class="line">    void setBeanClassName(@Nullable String var1);</span><br><span class="line"></span><br><span class="line">    @Nullable</span><br><span class="line">    String getBeanClassName();</span><br><span class="line"></span><br><span class="line">    void setScope(@Nullable String var1);</span><br><span class="line"></span><br><span class="line">    @Nullable</span><br><span class="line">    String getScope();</span><br><span class="line"></span><br><span class="line">    void setLazyInit(boolean var1);</span><br><span class="line"></span><br><span class="line">    boolean isLazyInit();</span><br><span class="line"></span><br><span class="line">    void setDependsOn(@Nullable String... var1);</span><br><span class="line"></span><br><span class="line">    @Nullable</span><br><span class="line">    String[] getDependsOn();</span><br><span class="line"></span><br><span class="line">    void setAutowireCandidate(boolean var1);</span><br><span class="line"></span><br><span class="line">    boolean isAutowireCandidate();</span><br><span class="line"></span><br><span class="line">    void setPrimary(boolean var1);</span><br><span class="line"></span><br><span class="line">    boolean isPrimary();</span><br><span class="line"></span><br><span class="line">    void setFactoryBeanName(@Nullable String var1);</span><br><span class="line"></span><br><span class="line">    @Nullable</span><br><span class="line">    String getFactoryBeanName();</span><br><span class="line"></span><br><span class="line">    void setFactoryMethodName(@Nullable String var1);</span><br><span class="line"></span><br><span class="line">    @Nullable</span><br><span class="line">    String getFactoryMethodName();</span><br><span class="line"></span><br><span class="line">    ConstructorArgumentValues getConstructorArgumentValues();</span><br><span class="line"></span><br><span class="line">    default boolean hasConstructorArgumentValues() &#123;</span><br><span class="line">        return !this.getConstructorArgumentValues().isEmpty();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    MutablePropertyValues getPropertyValues();</span><br><span class="line"></span><br><span class="line">    default boolean hasPropertyValues() &#123;</span><br><span class="line">        return !this.getPropertyValues().isEmpty();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    boolean isSingleton();</span><br><span class="line"></span><br><span class="line">    boolean isPrototype();</span><br><span class="line"></span><br><span class="line">    boolean isAbstract();</span><br><span class="line"></span><br><span class="line">    int getRole();</span><br><span class="line"></span><br><span class="line">    @Nullable</span><br><span class="line">    String getDescription();</span><br><span class="line"></span><br><span class="line">    @Nullable</span><br><span class="line">    String getResourceDescription();</span><br><span class="line"></span><br><span class="line">    @Nullable</span><br><span class="line">    BeanDefinition getOriginatingBeanDefinition();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>RootBeanDefinition和ChildBeanDefinition是BeanDefinition的两个主要实现类。</p>
+<p><img src="https://upload-images.jianshu.io/upload_images/10431632-75998e61a573ee13.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt=""></p>
+<h2 id="BeanFactory的对象注册与依赖绑定方式"><a href="#BeanFactory的对象注册与依赖绑定方式" class="headerlink" title="BeanFactory的对象注册与依赖绑定方式"></a>BeanFactory的对象注册与依赖绑定方式</h2><p>假设我们有一家饭店，需要有蔬菜采购和厨师做菜，则Restaurant类定义如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">public class Restaurant &#123;</span><br><span class="line">    // 厨师</span><br><span class="line">    private Chef chef;</span><br><span class="line">    // 蔬菜</span><br><span class="line">    private Vegetable vegetable;</span><br><span class="line"></span><br><span class="line">    构造方法...</span><br><span class="line">	get/set方法...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>蔬菜存在多种，我们抽象出Vegetable接口，并存在购买行为。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">public interface Vegetable &#123;</span><br><span class="line">    public String buy();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>编写2个Vegetable接口的实现类Tomato、Cabbage:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">public class Tomato implements Vegetable &#123;</span><br><span class="line">    @Override</span><br><span class="line">    public String buy() &#123;</span><br><span class="line">        System.out.println(&quot;采购员买来了番茄!&quot;);</span><br><span class="line">        return &quot;Tomato&quot;;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public class Cabbage implements Vegetable &#123;</span><br><span class="line">    @Override</span><br><span class="line">    public String buy() &#123;</span><br><span class="line">        System.out.println(&quot;采购员买来了卷心菜!&quot;);</span><br><span class="line">        return &quot;Cabbage&quot;;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>厨师也可能有多种，抽象出Chef接口如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">public interface Chef &#123;</span><br><span class="line">    public void cook(String vegetableName);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>并编写2个Chef的实现类:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">public class ChineseChef implements Chef &#123;</span><br><span class="line">    @Override</span><br><span class="line">    public void cook(String vegetableName) &#123;</span><br><span class="line">        System.out.println(&quot;中国厨师正在做&quot; + vegetableName + &quot;!&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public class ForeignChef implements Chef &#123;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    public void cook(String vegetableName) &#123;</span><br><span class="line">        System.out.println(&quot;外国厨师正在做&quot; + vegetableName + &quot;!&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>假设我们现在要开这样一家饭店，需要中国厨师和番茄，那么如何完成对象的注册管理和依赖绑定呢?</p>
+<h3 id="直接编码形式"><a href="#直接编码形式" class="headerlink" title="直接编码形式"></a>直接编码形式</h3><p>所谓直接编码形式，即用Spring的底层容器类来进行Bean的注册和管理，虽然不常用，但却有助于我们了解Spring的IOC是如何运作的。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">public class Test &#123;</span><br><span class="line">    public static void main(String[] args) &#123;</span><br><span class="line">        DefaultListableBeanFactory beanRegistry = new DefaultListableBeanFactory();</span><br><span class="line">        BeanFactory container = bindViaCode(beanRegistry);</span><br><span class="line">        // 测试Bean的装配</span><br><span class="line">        Restaurant chineseRestaurant = (Restaurant) container.getBean(&quot;chineseRestaurant&quot;);</span><br><span class="line">        Vegetable vegetable = chineseRestaurant.getVegetable();</span><br><span class="line">        String vegetableName = vegetable.buy();</span><br><span class="line">        Chef chef = chineseRestaurant.getChef();</span><br><span class="line">        chef.cook(vegetableName);</span><br><span class="line">        // 测试Bean的管理</span><br><span class="line">        Chef chef1 = (Chef) container.getBean(&quot;chineseChef&quot;);</span><br><span class="line">        chef1.cook(&quot;干锅花菜&quot;);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public static BeanFactory bindViaCode(BeanDefinitionRegistry registry)&#123;</span><br><span class="line">        AbstractBeanDefinition restaurant = new RootBeanDefinition(Restaurant.class);</span><br><span class="line">        AbstractBeanDefinition chef = new RootBeanDefinition(ChineseChef.class);</span><br><span class="line">        AbstractBeanDefinition vegetable = new RootBeanDefinition(Tomato.class);</span><br><span class="line">        // 将Bean注册到容器中</span><br><span class="line">        registry.registerBeanDefinition(&quot;chineseRestaurant&quot;, restaurant);</span><br><span class="line">        registry.registerBeanDefinition(&quot;chineseChef&quot;, chef);</span><br><span class="line">        registry.registerBeanDefinition(&quot;tomato&quot;, vegetable);</span><br><span class="line">        // 1. 指定依赖关系(构造方法注入)</span><br><span class="line">        ConstructorArgumentValues argValues = new ConstructorArgumentValues();</span><br><span class="line">        argValues.addIndexedArgumentValue(0, chef);</span><br><span class="line">        argValues.addIndexedArgumentValue(1, vegetable);</span><br><span class="line">        restaurant.setConstructorArgumentValues(argValues);</span><br><span class="line">        // 2. 指定依赖关系(setter方法注入)</span><br><span class="line">        MutablePropertyValues propertyValues = new MutablePropertyValues();</span><br><span class="line">        propertyValues.addPropertyValue(new PropertyValue(&quot;chef&quot;, chef));</span><br><span class="line">        propertyValues.addPropertyValue(new PropertyValue(&quot;vegetable&quot;, vegetable));</span><br><span class="line">        restaurant.setPropertyValues(propertyValues);</span><br><span class="line">        // 绑定完成</span><br><span class="line">        return (BeanFactory) registry;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>运行结果如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">采购员买来了番茄!</span><br><span class="line">中国厨师正在做Tomato!</span><br><span class="line">中国厨师正在做干锅花菜!</span><br></pre></td></tr></table></figure>
+<h3 id="外部配置文件形式"><a href="#外部配置文件形式" class="headerlink" title="外部配置文件形式"></a>外部配置文件形式</h3><p>其实就是将Bean的依赖关系放在配置文件中，然后Spring解析配置文件，得到各对象的依赖关系，进而完成对象的注册和依赖管理。</p>
+<p>整体的流程如下:</p>
+<ol>
+<li>BeanDefinitionReader实现类读取配置文件内容，并映射得到待管理Bean的BeanDefinition;</li>
+<li>BeanDefinitionReader根据配置文件内容定义的依赖关系，通过BeanDefinition指定Bean之间的依赖关系;</li>
+<li>将映射后的BeanDefinition注册到BeanDefinitionRegistry中。</li>
+</ol>
+<p>上述大部分的工作，如解析文件格式、装配BeanDefinition之类的工作，均由BeanDefinitionReader实现类来完成，BeanDefinitionRegistry仅是负责Bean的保管而已。</p>
+<p>整个过程类似于如下代码:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">BeanDefinitionRegistry beanRegistry = &lt;某个 BeanDefinitionRegistry 实现类，通常为DefaultListableBeanFactory&gt;;</span><br><span class="line">BeanDefinitionReader beanDefinitionReader = new BeanDefinitionReaderImpl(beanRegistry);</span><br><span class="line">beanDefinitionReader.loadBeanDefinitions(&quot;配置文件路径&quot;);</span><br><span class="line">// 现在我们就取得了一个可用的BeanDefinitionRegistry实例</span><br></pre></td></tr></table></figure>
+<p>看一下BeanDefinitionReader：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">public interface BeanDefinitionReader &#123;</span><br><span class="line">    BeanDefinitionRegistry getRegistry();</span><br><span class="line"></span><br><span class="line">    @Nullable</span><br><span class="line">    ResourceLoader getResourceLoader();</span><br><span class="line"></span><br><span class="line">    @Nullable</span><br><span class="line">    ClassLoader getBeanClassLoader();</span><br><span class="line"></span><br><span class="line">    BeanNameGenerator getBeanNameGenerator();</span><br><span class="line"></span><br><span class="line">    int loadBeanDefinitions(Resource var1) throws BeanDefinitionStoreException;</span><br><span class="line"></span><br><span class="line">    int loadBeanDefinitions(Resource... var1) throws BeanDefinitionStoreException;</span><br><span class="line"></span><br><span class="line">    int loadBeanDefinitions(String var1) throws BeanDefinitionStoreException;</span><br><span class="line"></span><br><span class="line">    int loadBeanDefinitions(String... var1) throws BeanDefinitionStoreException;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看出，BeanDefinitionReader通过getRegistry()获取BeanDefinitionRegistry，getResourceLoader()加载配置文件资源用于解析Bean的注册和依赖关系，getBeanClassLoader()获取类加载器用于类的加载，loadBeanDefinitions(..)方法主要运用反射将待管理的Bean封装成BeanDefinition，最后注册到BeanDefinitionRegistry中。</p>
+<p><img src="https://upload-images.jianshu.io/upload_images/10431632-0ba6413fc1f28afd.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt=""></p>
+<p>由上图可以看出，Spring的IOC容器默认支持3种文件格式:</p>
+<ul>
+<li>Properties文件格式</li>
+<li>XML文件格式</li>
+<li>Groovy文件格式</li>
+</ul>
+<p>本文主要讨论前2种文件格式:</p>
+<h4 id="Properties文件"><a href="#Properties文件" class="headerlink" title="Properties文件"></a>Properties文件</h4><p>首先在resources目录下创建beans.properties文件:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"># bean的name.(class)=实现类的全路径</span><br><span class="line">chef.(class)=com.ruanshubin.springboot.ioc.service.impl.ChineseChef</span><br><span class="line">vegetable.(class)=com.ruanshubin.springboot.ioc.service.impl.Tomato</span><br><span class="line">restaurant.(class)=com.ruanshubin.springboot.ioc.domain.Restaurant</span><br><span class="line"># 通过构造方法注入</span><br><span class="line">restaurant.$0(ref)=chef</span><br><span class="line">restaurant.$1(ref)=vegetable</span><br><span class="line"># 通过setter方法注入</span><br><span class="line"># restaurant.setChef(ref)=chef</span><br><span class="line"># restaurant.setVegetable(ref)=vegetable</span><br></pre></td></tr></table></figure>
+<p>然后编写主函数:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">public class FileTest &#123;</span><br><span class="line">    public static void main(String[] args) &#123;</span><br><span class="line">        DefaultListableBeanFactory beanRegistry = new DefaultListableBeanFactory();</span><br><span class="line">        BeanFactory container = bindViaPropertiesFile(beanRegistry);</span><br><span class="line">        // 测试Bean的装配</span><br><span class="line">        Restaurant chineseRestaurant = (Restaurant) container.getBean(&quot;restaurant&quot;);</span><br><span class="line">        Vegetable vegetable = chineseRestaurant.getVegetable();</span><br><span class="line">        String vegetableName = vegetable.buy();</span><br><span class="line">        Chef chef = chineseRestaurant.getChef();</span><br><span class="line">        chef.cook(vegetableName);</span><br><span class="line">        // 测试Bean的管理</span><br><span class="line">        Chef chef1 = (Chef) container.getBean(&quot;chef&quot;);</span><br><span class="line">        chef1.cook(&quot;蒜蓉空心菜!&quot;);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public static BeanFactory bindViaPropertiesFile(BeanDefinitionRegistry registry)&#123;</span><br><span class="line">        PropertiesBeanDefinitionReader reader = new PropertiesBeanDefinitionReader(registry);</span><br><span class="line">        reader.loadBeanDefinitions(&quot;classpath:beans.properties&quot;);</span><br><span class="line">        return (BeanFactory) registry;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>运行结果如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">采购员买来了番茄!</span><br><span class="line">中国厨师正在做Tomato!</span><br><span class="line">中国厨师正在做蒜蓉空心菜!</span><br></pre></td></tr></table></figure>
+<h4 id="XML文件"><a href="#XML文件" class="headerlink" title="XML文件"></a>XML文件</h4><p>XML配置格式是Spring支持最完整，功能最强大的表达方式，主要得益于:</p>
+<ul>
+<li>XML良好的语意表达能力；</li>
+<li>Spring框架从开始就自始至终保持XML配置加载的统一性。</li>
+</ul>
+<p>Spring 2.x之前，XML配置文件采用DTD（Document Type Definition）实现文档的格式约束。2.x之后，引入了基于XSD（XML Schema Definition）的约束方式。不过，原来的基于DTD的方式依然有效，因为从DTD转向XSD只是“形式”上的转变。</p>
+<p>首先在resources目录下创建beans.xml文件:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</span><br><span class="line">&lt;!DOCTYPE beans PUBLIC &quot;-//SPRING//DTD BEAN//EN&quot;</span><br><span class="line">        &quot;http://www.springframework.org/dtd/spring-beans.dtd&quot;&gt;</span><br><span class="line">&lt;beans&gt;</span><br><span class="line">    &lt;bean id=&quot;restaurant&quot; class=&quot;com.ruanshubin.springboot.ioc.domain.Restaurant&quot;&gt;</span><br><span class="line">        &lt;constructor-arg index=&quot;0&quot;&gt;</span><br><span class="line">            &lt;ref bean=&quot;chef&quot;/&gt;</span><br><span class="line">        &lt;/constructor-arg&gt;</span><br><span class="line">        &lt;constructor-arg index=&quot;1&quot;&gt;</span><br><span class="line">            &lt;ref bean=&quot;vegetable&quot;/&gt;</span><br><span class="line">        &lt;/constructor-arg&gt;</span><br><span class="line">    &lt;/bean&gt;</span><br><span class="line"></span><br><span class="line">    &lt;bean id=&quot;chef&quot; class=&quot;com.ruanshubin.springboot.ioc.service.impl.ForeignChef&quot;/&gt;</span><br><span class="line"></span><br><span class="line">    &lt;bean id=&quot;vegetable&quot; class=&quot;com.ruanshubin.springboot.ioc.service.impl.Cabbage&quot;/&gt;</span><br><span class="line">&lt;/beans&gt;</span><br></pre></td></tr></table></figure>
+<p>主函数:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">public class FileTest &#123;</span><br><span class="line">    public static void main(String[] args) &#123;</span><br><span class="line">        DefaultListableBeanFactory beanRegistry = new DefaultListableBeanFactory();</span><br><span class="line">        BeanFactory container = bindViaXmlFile(beanRegistry);</span><br><span class="line">        // 测试Bean的装配</span><br><span class="line">        Restaurant chineseRestaurant = (Restaurant) container.getBean(&quot;restaurant&quot;);</span><br><span class="line">        Vegetable vegetable = chineseRestaurant.getVegetable();</span><br><span class="line">        String vegetableName = vegetable.buy();</span><br><span class="line">        Chef chef = chineseRestaurant.getChef();</span><br><span class="line">        chef.cook(vegetableName);</span><br><span class="line">        // 测试Bean的管理</span><br><span class="line">        Chef chef1 = (Chef) container.getBean(&quot;chef&quot;);</span><br><span class="line">        chef1.cook(&quot;法式焗蜗牛&quot;);</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public static BeanFactory bindViaXmlFile(BeanDefinitionRegistry registry)&#123;</span><br><span class="line">        XmlBeanDefinitionReader reader = new XmlBeanDefinitionReader(registry);</span><br><span class="line">        reader.loadBeanDefinitions(&quot;classpath:beans.xml&quot;);</span><br><span class="line">        return (BeanFactory) registry;</span><br><span class="line">		// 或者直接如下:</span><br><span class="line">        // return new XmlBeanFactory(new ClassPathResource(&quot;beans.xml&quot;));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>运行结果如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">采购员买来了卷心菜!</span><br><span class="line">外国厨师正在做Cabbage!</span><br><span class="line">外国厨师正在做法式焗蜗牛!</span><br></pre></td></tr></table></figure>
+<p>当然，如果你想使用其他格式的配置文件来进行Bean的注册和依赖管理，可以实现自定义的BeanDefinitionReader来达到自定义文件加载的目的。</p>
+<h3 id="注解形式"><a href="#注解形式" class="headerlink" title="注解形式"></a>注解形式</h3><p>基于注解的方式，主要是通过@Autowired及@Component对相关类进行标记，然后通过AbstractApplicationContext借助classpath-scanning功能来完成Bean的注册和依赖管理。</p>
+<p><img src="https://upload-images.jianshu.io/upload_images/10431632-029d5f6e090a5f82.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt=""></p>
+<p>首先为相关类添加注解:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">@Component</span><br><span class="line">public class Restaurant &#123;</span><br><span class="line">    // 厨师</span><br><span class="line">    @Autowired</span><br><span class="line">    private Chef chef;</span><br><span class="line">    // 蔬菜</span><br><span class="line">    @Autowired</span><br><span class="line">    private Vegetable vegetable;</span><br><span class="line">	...</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">@Component</span><br><span class="line">public class Tomato implements Vegetable &#123;</span><br><span class="line">	...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">@Component</span><br><span class="line">public class ChineseChef implements Chef &#123;</span><br><span class="line">	...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>@Autowired用于依赖注入，@Component用于Bean注册，接下来配置注解扫描。</p>
+<p>在resources目录下新建spring.xml:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</span><br><span class="line">&lt;beans xmlns=&quot;http://www.springframework.org/schema/beans&quot;</span><br><span class="line">        xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;</span><br><span class="line">        xmlns:context=&quot;http://www.springframework.org/schema/context&quot;</span><br><span class="line">        xsi:schemaLocation=&quot;http://www.springframework.org/schema/beans</span><br><span class="line">        http://www.springframework.org/schema/beans/spring-beans-2.5.xsd</span><br><span class="line">        http://www.springframework.org/schema/context</span><br><span class="line">        http://www.springframework.org/schema/context/spring-context-2.5.xsd&quot;&gt;</span><br><span class="line"></span><br><span class="line">    &lt;context:component-scan base-package=&quot;com.ruanshubin.springboot.ioc&quot;/&gt;</span><br><span class="line"></span><br><span class="line">&lt;/beans&gt;</span><br></pre></td></tr></table></figure>
+<p><context:component-scan> 会到指定的包（package）下面扫描标注有@Component的类，如果找到，则将它们添加到容器进行管理，并根据它们所标注的@Autowired为这些类注入符合条件的依赖对象。</context:component-scan></p>
+<p>主函数:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">public class AnnotationTest &#123;</span><br><span class="line">    public static void main(String[] args) &#123;</span><br><span class="line">        ClassPathXmlApplicationContext ctx = new ClassPathXmlApplicationContext(&quot;spring.xml&quot;);</span><br><span class="line">        Restaurant chineseRestaurant = (Restaurant) ctx.getBean(&quot;restaurant&quot;);</span><br><span class="line">        Vegetable vegetable = chineseRestaurant.getVegetable();</span><br><span class="line">        String vegetableName = vegetable.buy();</span><br><span class="line">        Chef chef = chineseRestaurant.getChef();</span><br><span class="line">        chef.cook(vegetableName);</span><br><span class="line">        // 测试Bean的管理</span><br><span class="line">        Chef chef1 = (Chef) ctx.getBean(&quot;chineseChef&quot;);</span><br><span class="line">        chef1.cook(&quot;鸡蛋韭菜水饺&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>运行结果为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">采购员买来了番茄!</span><br><span class="line">中国厨师正在做Tomato!</span><br><span class="line">中国厨师正在做鸡蛋韭菜水饺!</span><br></pre></td></tr></table></figure>
+<p>我们再配置Bean时，只是在实体类上加了@Component注解，并没有指定Bean的id或name，ApplicationContext默认采用实体类的小驼峰作为id，如ChineseChef的id为chineseChef，Tomato的id为tomato。</p>
+<p>同时，在配置Bean依赖时，@Autowired加在接口之上，如:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">@Autowired</span><br><span class="line">private Chef chef;</span><br></pre></td></tr></table></figure>
+<p>由于我们只在ChineseChef添加了@Component注解，所以Spring容器里只有1个Chef的实现类，此时，ApplicationContext直接将ChineseChef注入到Restaurant中。</p>
+<p>假如Spring容器里有2个Chef的实现类.会出现什么情况呢?</p>
+<p>只需要在ForeignChef上添加@Component即可。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">@Component</span><br><span class="line">public class ForeignChef implements Chef &#123;</span><br><span class="line">	...</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+<p>重新运行主函数，报错:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Exception in thread &quot;main&quot; org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name &apos;restaurant&apos;: Unsatisfied dependency expressed through field &apos;chef&apos;; nested exception is org.springframework.beans.factory.NoUniqueBeanDefinitionException: No qualifying bean of type &apos;com.ruanshubin.springboot.ioc.service.Chef&apos; available: expected single matching bean but found 2: chineseChef,foreignChef</span><br><span class="line">	...</span><br></pre></td></tr></table></figure>
+<p>错误信息很明显，说进行Restaurant依赖注入的时候，发现Chef接口有2个实现类:chineseChef、foreignChef，程序不知道该选择哪个进行注入。</p>
+<p>解决上述错误的方式有很多，后面我们专门用1篇文章进行讲解。</p>
+<p><strong>参考文献:</strong></p>
+<ol>
+<li>王福强. Spring揭秘[M]. 2009.</li>
+</ol>
+<p><img src="https://upload-images.jianshu.io/upload_images/10431632-86426e609c966a5e.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt=""></p>
+<p>欢迎您扫一扫上面的二维码，关注我的微信公众号！</p>
+
+      
+    </div>
+    
+    
+    
+	
+	<div>
+	
+		<div>
+    
+        <div style="text-align:center;color: #ccc;font-size:14px;">-------------本文结束<i class="fa fa-paw"></i>感谢您的阅读-------------</div>
+    
+</div>
+	
+	</div>
+
+    
+      <div>
+        <div id="wechat_subscriber" style="display: block; padding: 10px 0; margin: 20px auto; width: 100%; text-align: center">
+    <img id="wechat_subscriber_qcode" src="/uploads/wechat-qcode.jpg" alt="Ruan Shubin wechat" style="width: 200px; max-width: 100%;">
+    <div>欢迎您扫一扫上面的二维码，关注我的微信公众号！</div>
+</div>
+
+      </div>
+    
+
+    
+
+    
+      <div>
+        <ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者：</strong>
+    Ruan Shubin
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="http://ruanshubin.top/2019/06/04/Spring容器之BeanFactory/" title="Spring容器之BeanFactory">http://ruanshubin.top/2019/06/04/Spring容器之BeanFactory/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>
+    本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/" rel="external nofollow" target="_blank">CC BY-NC-SA 3.0</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+
+      </div>
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Spring/" rel="tag"><i class="fa fa-tag"></i> Spring</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/05/28/Java并发编程-valatile关键字/" rel="next" title="Java并发编程-valatile关键字">
+                <i class="fa fa-chevron-left"></i> Java并发编程-valatile关键字
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/06/05/Spring-IOC的XML配置/" rel="prev" title="Spring-IOC的XML配置">
+                Spring-IOC的XML配置 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+        <!-- JiaThis Button BEGIN -->
+<div class="jiathis_style">
+<span class="jiathis_txt">分享到：</span>
+<a class="jiathis_button_weixin">微信</a>
+<a class="jiathis_button_qzone">QQ空间</a>
+<a class="jiathis_button_tsina">新浪微博</a>
+<a class="jiathis_button_zhihu">知乎</a>
+<a class="jiathis_button_share">一键分享</a>
+
+<a href="http://www.jiathis.com/share?uid=2140465" class="jiathis jiathis_txt jiathis_separator jtico jtico_jiathis" target="_blank">更多</a>
+<a class="jiathis_counter_style"></a>
+</div>
+<script type="text/javascript">
+var jiathis_config={
+  data_track_clickback:true,
+  summary:"",
+  shortUrl:false,
+  hideMore:false
+}
+</script>
+<script type="text/javascript" src="http://v3.jiathis.com/code/jia.js?uid=" charset="utf-8"></script>
+<!-- JiaThis Button END -->
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div class="comments" id="comments">
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8zMzc1NC8xMDMwOA"></div>
+    </div>
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/avatar.gif" alt="Ruan Shubin">
+            
+              <p class="site-author-name" itemprop="name">Ruan Shubin</p>
+              <p class="site-description motion-element" itemprop="description">一万年太久，只争朝夕！</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives">
+              
+                  <span class="site-state-item-count">23</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">8</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">20</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+            <div class="feed-link motion-element">
+              <a href="/atom.xml" rel="alternate">
+                <i class="fa fa-rss"></i>
+                RSS
+              </a>
+            </div>
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/Ruanshubin" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://weibo.com/u/2487162561" target="_blank" title="Weibo">
+                      
+                        <i class="fa fa-fw fa-weibo"></i>Weibo</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://blog.csdn.net/wenwu_both" target="_blank" title="CSDN">
+                      
+                        <i class="fa fa-fw fa-book"></i>CSDN</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="http://tcrl.zju.edu.cn/" target="_blank" title="Lab">
+                      
+                        <i class="fa fa-fw fa-users"></i>Lab</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#引言"><span class="nav-number">1.</span> <span class="nav-text">引言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#BeanFactory、BeanDefinitionRegistry和Bean的关系"><span class="nav-number">2.</span> <span class="nav-text">BeanFactory、BeanDefinitionRegistry和Bean的关系</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#BeanFactory的对象注册与依赖绑定方式"><span class="nav-number">3.</span> <span class="nav-text">BeanFactory的对象注册与依赖绑定方式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#直接编码形式"><span class="nav-number">3.1.</span> <span class="nav-text">直接编码形式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#外部配置文件形式"><span class="nav-number">3.2.</span> <span class="nav-text">外部配置文件形式</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Properties文件"><span class="nav-number">3.2.1.</span> <span class="nav-text">Properties文件</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#XML文件"><span class="nav-number">3.2.2.</span> <span class="nav-text">XML文件</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#注解形式"><span class="nav-number">3.3.</span> <span class="nav-text">注解形式</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Ruan Shubin</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+      <span class="post-meta-item-text">全站总字数&#58;</span>
+    
+    <span title="全站总字数">57.8k</span>
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Pisces</a> v5.1.4</div>
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+
+  
+</div>
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  <script type="text/javascript">
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url);
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x" /></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x" /></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+  
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdn.bootcss.com/mathjax/2.7.1/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+
+  
+
+  
+
+</body>
+</html>

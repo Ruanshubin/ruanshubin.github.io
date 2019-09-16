@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=5.1.4">
+
+
+
+
+
+
+
+  <meta name="keywords" content="Spring,">
+
+
+
+
+
+  <link rel="alternate" href="/atom.xml" title="阮树斌 | 技术改变生活" type="application/atom+xml">
+
+
+
+
+
+
+<meta name="description" content="引言在Springboot编程实践中，我们偏向使用注解的方式进行Bean的注册和依赖注入等，但XML格式的容器信息管理方式仍是Spring提供的最为强大、支持最为全面的方式，本文对Spring-IOC的XML配置进行详细的讲解。 和BeanFactory和ApplicationContext的XML配置均采用统一的格式，在Spring2.0之前，这种格式由Spring提供的DTD规定，即在配置文件">
+<meta name="keywords" content="Spring">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Spring-IOC的XML配置">
+<meta property="og:url" content="http://ruanshubin.top/2019/06/05/Spring-IOC的XML配置/index.html">
+<meta property="og:site_name" content="阮树斌 | 技术改变生活">
+<meta property="og:description" content="引言在Springboot编程实践中，我们偏向使用注解的方式进行Bean的注册和依赖注入等，但XML格式的容器信息管理方式仍是Spring提供的最为强大、支持最为全面的方式，本文对Spring-IOC的XML配置进行详细的讲解。 和BeanFactory和ApplicationContext的XML配置均采用统一的格式，在Spring2.0之前，这种格式由Spring提供的DTD规定，即在配置文件">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="https://upload-images.jianshu.io/upload_images/10431632-a592bb9d7a331a0a.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240">
+<meta property="og:updated_time" content="2019-09-16T01:37:16.329Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Spring-IOC的XML配置">
+<meta name="twitter:description" content="引言在Springboot编程实践中，我们偏向使用注解的方式进行Bean的注册和依赖注入等，但XML格式的容器信息管理方式仍是Spring提供的最为强大、支持最为全面的方式，本文对Spring-IOC的XML配置进行详细的讲解。 和BeanFactory和ApplicationContext的XML配置均采用统一的格式，在Spring2.0之前，这种格式由Spring提供的DTD规定，即在配置文件">
+<meta name="twitter:image" content="https://upload-images.jianshu.io/upload_images/10431632-a592bb9d7a331a0a.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://ruanshubin.top/2019/06/05/Spring-IOC的XML配置/">
+
+
+
+
+
+  <title>Spring-IOC的XML配置 | 阮树斌 | 技术改变生活</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+
+   <canvas class="fireworks" style="position: fixed;left: 0;top: 0;z-index: 1; pointer-events: none;"></canvas> 
+   <script type="text/javascript" src="//cdn.bootcss.com/animejs/2.2.0/anime.min.js"></script> 
+   <script type="text/javascript" src="/js/src/fireworks.js"></script>
+
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+	<a href="https://github.com/Ruanshubin" class="github-corner" aria-label="View source on Github">
+	<svg width="80" height="80" viewbox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true">
+	<path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"/>
+	<path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"/>
+	<path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"/>
+	</svg>
+	</a>
+	<style>
+	.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}
+	</style>
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">阮树斌 | 技术改变生活</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">交通 | 数据 | 算法 <br> Java | Python | Scala | Matlab | GIS</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-首页">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-分类">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br>
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-归档">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-标签">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-关于">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br>
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+	
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://ruanshubin.top/2019/06/05/Spring-IOC的XML配置/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Ruan Shubin">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="阮树斌 | 技术改变生活">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Spring-IOC的XML配置</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-06-05T20:19:00+08:00">
+                2019-06-05
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Spring/" itemprop="url" rel="index">
+                    <span itemprop="name">Spring</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-wordcount">
+              
+                
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">字数统计&#58;</span>
+                
+                <span title="字数统计">
+                  5.2k 字
+                </span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">
+                  24 分钟
+                </span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>在Springboot编程实践中，我们偏向使用注解的方式进行Bean的注册和依赖注入等，但XML格式的容器信息管理方式仍是Spring提供的最为强大、支持最为全面的方式，本文对Spring-IOC的XML配置进行详细的讲解。</p>
+<h2 id="和"><a href="#和" class="headerlink" title="和"></a><beans\>和<bean\></bean\></beans\></h2><p>BeanFactory和ApplicationContext的XML配置均采用统一的格式，在Spring2.0之前，这种格式由Spring提供的DTD规定，即在配置文件的头部，需要以下形式的DOCTYPE声明:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</span><br><span class="line">&lt;!DOCTYPE beans PUBLIC &quot;-//SPRING//DTD BEAN//EN&quot;</span><br><span class="line">&quot;http://www.springframework.org/dtd/spring-beans.dtd&quot;&gt;</span><br><span class="line">&lt;beans&gt;</span><br><span class="line">   ...</span><br><span class="line">&lt;/beans&gt;</span><br></pre></td></tr></table></figure>
+<p>从Spring 2.0版本之后，Spring在继续保持向前兼容的前提下，既可以继续使用DTD方式的 DOCTYPE<br>进行配置文件格式的限定，又引入了基于XML Schema的文档声明：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">&lt;beans xmlns=&quot;http://www.springframework.org/schema/beans&quot;</span><br><span class="line">       xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;</span><br><span class="line">        xmlns:util=&quot;http://www.springframework.org/schema/util&quot;</span><br><span class="line">        xmlns:jee=&quot;http://www.springframework.org/schema/jee&quot;</span><br><span class="line">        xmlns:lang=&quot;http://www.springframework.org/schema/lang&quot;</span><br><span class="line">        xmlns:aop=&quot;http://www.springframework.org/schema/aop&quot;</span><br><span class="line">        xmlns:tx=&quot;http://www.springframework.org/schema/tx&quot;</span><br><span class="line">        xsi:schemaLocation=&quot;http://www.springframework.org/schema/beans</span><br><span class="line">        http://www.springframework.org/schema/beans/spring-beans-2.0.xsd</span><br><span class="line">        http://www.springframework.org/schema/util</span><br><span class="line">        http://www.springframework.org/schema/util/spring-util-2.0.xsd</span><br><span class="line">        http://www.springframework.org/schema/jee</span><br><span class="line">        http://www.springframework.org/schema/jee/spring-jee-2.0.xsd</span><br><span class="line">        http://www.springframework.org/schema/lang</span><br><span class="line">        http://www.springframework.org/schema/lang/spring-lang-2.0.xsd</span><br><span class="line">        http://www.springframework.org/schema/aop</span><br><span class="line">        http://www.springframework.org/schema/aop/spring-aop-2.0.xsd</span><br><span class="line">        http://www.springframework.org/schema/tx</span><br><span class="line">        http://www.springframework.org/schema/tx/spring-tx-2.0.xsd&quot;&gt;</span><br><span class="line">    ...</span><br><span class="line">&lt;/beans&gt;</span><br></pre></td></tr></table></figure>
+<h3 id=""><a href="#" class="headerlink" title=""></a><beans\></beans\></h3><p><beans\>是配置文件的顶层元素，其可以包含0或1个<description\>和多个<bean\>以及<import\>或者<alias\></alias\></import\></bean\></description\></beans\></p>
+<p><beans\>可以配置所有<bean\>的全局行为，主要包括:</bean\></beans\></p>
+<ul>
+<li>default-lazy-init</li>
+</ul>
+<p>取值true或false，默认值false，用来标志是否对所有的<bean\>进行延迟初始化。</bean\></p>
+<ul>
+<li>default-autowire</li>
+</ul>
+<p>可以取值为no、byName、byType、constructor以及autodetect。默认值为 no ，如果使用自动绑定的话，用来标志全体bean使用哪一种默认绑定方式。</p>
+<ul>
+<li>default-dependency-check</li>
+</ul>
+<p>可以取值none、objects、simple以及all，默认值为none，即不做依赖检查。</p>
+<ul>
+<li>default-init-method</li>
+</ul>
+<p>如果所管辖的<bean\>按照某种规则，都有同样名称的初始化方法的话，可以在这里统一指定这个初始化方法名，而不用在每一个<bean\>上都重复单独指定。</bean\></bean\></p>
+<ul>
+<li>default-destroy-method</li>
+</ul>
+<p>与default-init-method相对应，如果所管辖的bean有按照某种规则使用了相同名称的对象销毁方法，可以通过这个属性统一指定。</p>
+<h3 id="、和"><a href="#、和" class="headerlink" title="、和"></a><description\>、<import\>和<alias\></alias\></import\></description\></h3><ul>
+<li><description\>
+
+</description\></li>
+</ul>
+<p>配置文件的描述信息。</p>
+<ul>
+<li><import\>
+
+</import\></li>
+</ul>
+<p>通常情况下，可以根据模块功能或者层次关系，将配置信息分门别类地放到多个配置文件中。在想加载主要配置文件，并将主要配置文件所依赖的配置文件同时加载时，可以在这个主要的配置文件中通过<import\>元素对其所依赖的配置文件进行引用。比如，如果A.xml中的<bean\>定义可能依赖B.xml中的某些<bean\>定义，那么就可以在A.xml中使用<import\>将B.xml引入到A.xml，以类似于<import resource="B.xml" \=""> 的形式。</import></import\></bean\></bean\></import\></p>
+<ul>
+<li><alias\>
+
+</alias\></li>
+</ul>
+<p>可以通过<alias\>为某些<bean\>起一些“外号”（别名），通常情况下是为了减少输入。比如，假设有个<bean\> ，它的名称为dataSourceForMasterDatabase ，你可以为其添加一个<alias\> ，像这样<alias name="dataSourceForMasterDatabase" alias="masterDataSource" \=""> 。以后通过dataSourceForMasterDatabase或者 masterDataSource来引用这个<bean\>都可以。</bean\></alias></alias\></bean\></bean\></alias\></p>
+<h3 id="-1"><a href="#-1" class="headerlink" title=""></a><bean\></bean\></h3><ul>
+<li>id属性</li>
+</ul>
+<p>对象在容器里的标识，若未配置，则<bean\>的id取类名的小驼峰。</bean\></p>
+<p>除了使用id，也可以使用name来进行标识，它与id的区别是， name可以使用id不能使用的一些字符，比如/。而且<br>还可以通过逗号、空格或者冒号分割指定多个name。name的作用跟使用<alias\>为id指定多个别名基本相同：</alias\></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">&lt;bean id=&quot;person&quot; name=&quot;/china/person,/england/person&quot;/ class=&quot;com.ruanshubin.springboot.entity.Person&quot;&gt;</span><br><span class="line">等同于:</span><br><span class="line">&lt;alias name=&quot;person&quot; alias=&quot;/china/person&quot;/&gt;</span><br><span class="line">&lt;alias name=&quot;person&quot; alias=&quot;/england/person&quot;/&gt;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>class属性</li>
+</ul>
+<p>每个注册到容器的对象都需要通过<bean\>元素的class属性指定其类型。</bean\></p>
+<h2 id="依赖注入"><a href="#依赖注入" class="headerlink" title="依赖注入"></a>依赖注入</h2><p>为了演示依赖注入，我们新建3个实体类，分别为主机、显示器和电脑。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">public class MainEngine &#123;</span><br><span class="line">    // 名称</span><br><span class="line">    private String name;</span><br><span class="line">    // 型号</span><br><span class="line">    private String type;</span><br><span class="line">    // 花费</span><br><span class="line">    private Integer cost;</span><br><span class="line">		</span><br><span class="line">		...</span><br><span class="line">		构造器及get/set方法</span><br><span class="line">		toString方法</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">public class Display &#123;</span><br><span class="line">    // 名称</span><br><span class="line">    private String name;</span><br><span class="line">    // 型号</span><br><span class="line">    private String type;</span><br><span class="line">    // 花费</span><br><span class="line">    private Integer cost;</span><br><span class="line"></span><br><span class="line">		...</span><br><span class="line">		构造器及get/set方法</span><br><span class="line">		toString方法</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">public class Computer &#123;</span><br><span class="line">    // 名称</span><br><span class="line">    private String name;</span><br><span class="line">    // 主机</span><br><span class="line">    private MainEngine mainEngine;</span><br><span class="line">    // 显示器</span><br><span class="line">    private Display display;</span><br><span class="line">				</span><br><span class="line">			...</span><br><span class="line">		构造器及get/set方法</span><br><span class="line">		toString方法</span><br><span class="line">		&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="构造方法注入"><a href="#构造方法注入" class="headerlink" title="构造方法注入"></a>构造方法注入</h3><p>在resources目录下新建spring-beans.xml文件:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line">&lt;beans xmlns=&quot;http://www.springframework.org/schema/beans&quot;</span><br><span class="line">       xmlns:xsi=&quot;http://www.w3.org/2001/XMLSchema-instance&quot;</span><br><span class="line">        xmlns:util=&quot;http://www.springframework.org/schema/util&quot;</span><br><span class="line">        xmlns:jee=&quot;http://www.springframework.org/schema/jee&quot;</span><br><span class="line">        xmlns:lang=&quot;http://www.springframework.org/schema/lang&quot;</span><br><span class="line">        xmlns:aop=&quot;http://www.springframework.org/schema/aop&quot;</span><br><span class="line">        xmlns:tx=&quot;http://www.springframework.org/schema/tx&quot;</span><br><span class="line">        xsi:schemaLocation=&quot;http://www.springframework.org/schema/beans</span><br><span class="line">        http://www.springframework.org/schema/beans/spring-beans-2.0.xsd</span><br><span class="line">        http://www.springframework.org/schema/util</span><br><span class="line">        http://www.springframework.org/schema/util/spring-util-2.0.xsd</span><br><span class="line">        http://www.springframework.org/schema/jee</span><br><span class="line">        http://www.springframework.org/schema/jee/spring-jee-2.0.xsd</span><br><span class="line">        http://www.springframework.org/schema/lang</span><br><span class="line">        http://www.springframework.org/schema/lang/spring-lang-2.0.xsd</span><br><span class="line">        http://www.springframework.org/schema/aop</span><br><span class="line">        http://www.springframework.org/schema/aop/spring-aop-2.0.xsd</span><br><span class="line">        http://www.springframework.org/schema/tx</span><br><span class="line">        http://www.springframework.org/schema/tx/spring-tx-2.0.xsd&quot;&gt;</span><br><span class="line"></span><br><span class="line">    &lt;bean id=&quot;display&quot; class=&quot;com.ruanshubin.springboot.ioc.entity.Display&quot;&gt;</span><br><span class="line">        &lt;constructor-arg&gt;</span><br><span class="line">            &lt;value&gt;惠普&lt;/value&gt;</span><br><span class="line">        &lt;/constructor-arg&gt;</span><br><span class="line">        &lt;constructor-arg&gt;</span><br><span class="line">            &lt;value&gt;V300&lt;/value&gt;</span><br><span class="line">        &lt;/constructor-arg&gt;</span><br><span class="line">        &lt;constructor-arg&gt;</span><br><span class="line">            &lt;value&gt;1000&lt;/value&gt;</span><br><span class="line">        &lt;/constructor-arg&gt;</span><br><span class="line">    &lt;/bean&gt;</span><br><span class="line"></span><br><span class="line">    &lt;bean id=&quot;mainEngine&quot; class=&quot;com.ruanshubin.springboot.ioc.entity.MainEngine&quot;&gt;</span><br><span class="line">        &lt;constructor-arg&gt;</span><br><span class="line">            &lt;value&gt;戴尔&lt;/value&gt;</span><br><span class="line">        &lt;/constructor-arg&gt;</span><br><span class="line">        &lt;constructor-arg&gt;</span><br><span class="line">            &lt;value&gt;T600&lt;/value&gt;</span><br><span class="line">        &lt;/constructor-arg&gt;</span><br><span class="line">        &lt;constructor-arg&gt;</span><br><span class="line">            &lt;value&gt;3600&lt;/value&gt;</span><br><span class="line">        &lt;/constructor-arg&gt;</span><br><span class="line">    &lt;/bean&gt;</span><br><span class="line"></span><br><span class="line">    &lt;bean id=&quot;computer&quot; class=&quot;com.ruanshubin.springboot.ioc.entity.Computer&quot;&gt;</span><br><span class="line">        &lt;constructor-arg&gt;</span><br><span class="line">            &lt;value&gt;组装机1&lt;/value&gt;</span><br><span class="line">        &lt;/constructor-arg&gt;</span><br><span class="line">        &lt;constructor-arg&gt;</span><br><span class="line">            &lt;ref bean=&quot;mainEngine&quot;&gt;&lt;/ref&gt;</span><br><span class="line">        &lt;/constructor-arg&gt;</span><br><span class="line">        &lt;constructor-arg&gt;</span><br><span class="line">            &lt;ref bean=&quot;display&quot;&gt;&lt;/ref&gt;</span><br><span class="line">        &lt;/constructor-arg&gt;</span><br><span class="line">    &lt;/bean&gt;</span><br><span class="line"></span><br><span class="line">&lt;/beans&gt;</span><br></pre></td></tr></table></figure>
+<p>编写主函数:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">public class IocXmlTest &#123;</span><br><span class="line">    public static void main(String[] args) &#123;</span><br><span class="line">        XmlBeanFactory beanFactory = new XmlBeanFactory(new ClassPathResource(&quot;spring-beans.xml&quot;));</span><br><span class="line">        Computer computer = (Computer) beanFactory.getBean(&quot;computer&quot;);</span><br><span class="line">        System.out.println(computer);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>运行结果为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Computer&#123;name=&apos;组装机1&apos;, mainEngine=MainEngine&#123;name=&apos;戴尔&apos;, type=&apos;T600&apos;, cost=3600&#125;, display=Display&#123;name=&apos;惠普&apos;, type=&apos;V300&apos;, cost=1000&#125;&#125;</span><br></pre></td></tr></table></figure>
+<p>可以发现，如果注入的属性为基本数据类型(及其包装类)、String等，则使用<value\>进行注入，若为Java对象，则使用<ref bean="..." \="">的方式进行注入。</ref></value\></p>
+<p>同时，上述<constructor-arg\>的顺序要与Java类中属性的顺序要严格一致，否则会出现问题，如将mainEngine的配置修改为:</constructor-arg\></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&lt;bean id=&quot;mainEngine&quot; class=&quot;com.ruanshubin.springboot.ioc.entity.MainEngine&quot;&gt;</span><br><span class="line">		&lt;constructor-arg&gt;</span><br><span class="line">				&lt;value&gt;T600&lt;/value&gt;</span><br><span class="line">		&lt;/constructor-arg&gt;</span><br><span class="line">		&lt;constructor-arg&gt;</span><br><span class="line">				&lt;value&gt;戴尔&lt;/value&gt;</span><br><span class="line">		&lt;/constructor-arg&gt;</span><br><span class="line">		&lt;constructor-arg&gt;</span><br><span class="line">				&lt;value&gt;3600&lt;/value&gt;</span><br><span class="line">		&lt;/constructor-arg&gt;</span><br><span class="line">&lt;/bean&gt;</span><br></pre></td></tr></table></figure>
+<p>重新运行主类，结果为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Computer&#123;name=&apos;组装机1&apos;, mainEngine=MainEngine&#123;name=&apos;T600&apos;, type=&apos;戴尔&apos;, cost=3600&#125;, display=Display&#123;name=&apos;惠普&apos;, type=&apos;V300&apos;, cost=1000&#125;&#125;</span><br></pre></td></tr></table></figure>
+<p>可以发现，主机的名称和型号互换，造成异常。</p>
+<p>此时，可以添加<strong>index标签</strong>，其表征了属性的顺序编号，从0开始。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&lt;bean id=&quot;mainEngine&quot; class=&quot;com.ruanshubin.springboot.ioc.entity.MainEngine&quot;&gt;</span><br><span class="line">		&lt;constructor-arg index=&quot;1&quot;&gt;</span><br><span class="line">				&lt;value&gt;T600&lt;/value&gt;</span><br><span class="line">		&lt;/constructor-arg&gt;</span><br><span class="line">		&lt;constructor-arg index=&quot;0&quot;&gt;</span><br><span class="line">				&lt;value&gt;戴尔&lt;/value&gt;</span><br><span class="line">		&lt;/constructor-arg&gt;</span><br><span class="line">		&lt;constructor-arg&gt;</span><br><span class="line">				&lt;value&gt;3600&lt;/value&gt;</span><br><span class="line">		&lt;/constructor-arg&gt;</span><br><span class="line">&lt;/bean&gt;</span><br></pre></td></tr></table></figure>
+<p>还有<strong>type标签</strong>，用于各属性类型不同时配置：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">&lt;bean id=&quot;mainEngine&quot; class=&quot;com.ruanshubin.springboot.ioc.entity.MainEngine&quot;&gt;</span><br><span class="line">		&lt;!--不添加type标签会报错--&gt;</span><br><span class="line">		&lt;constructor-arg type=&quot;Integer&quot;&gt;</span><br><span class="line">				&lt;value&gt;3600&lt;/value&gt;</span><br><span class="line">		&lt;/constructor-arg&gt;</span><br><span class="line">		&lt;constructor-arg&gt;</span><br><span class="line">				&lt;value&gt;戴尔&lt;/value&gt;</span><br><span class="line">		&lt;/constructor-arg&gt;</span><br><span class="line">		&lt;constructor-arg&gt;</span><br><span class="line">				&lt;value&gt;T600&lt;/value&gt;</span><br><span class="line">		&lt;/constructor-arg&gt;</span><br><span class="line">&lt;/bean&gt;</span><br></pre></td></tr></table></figure>
+<p>最强大的是<strong>name标签</strong>，不管<constructor-arg\>的顺序是否与实体类各属性的顺序是否一致，只要保证name一致即可安全注入，如将mainEngine的配置修改为:</constructor-arg\></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&lt;bean id=&quot;mainEngine&quot; class=&quot;com.ruanshubin.springboot.ioc.entity.MainEngine&quot;&gt;</span><br><span class="line">		&lt;constructor-arg name=&quot;cost&quot;&gt;</span><br><span class="line">				&lt;value&gt;3600&lt;/value&gt;</span><br><span class="line">		&lt;/constructor-arg&gt;</span><br><span class="line">		&lt;constructor-arg name=&quot;type&quot;&gt;</span><br><span class="line">				&lt;value&gt;T600&lt;/value&gt;</span><br><span class="line">		&lt;/constructor-arg&gt;</span><br><span class="line">		&lt;constructor-arg name=&quot;name&quot;&gt;</span><br><span class="line">				&lt;value&gt;戴尔&lt;/value&gt;</span><br><span class="line">		&lt;/constructor-arg&gt;</span><br><span class="line">&lt;/bean&gt;</span><br></pre></td></tr></table></figure>
+<p>虽然<constructor-arg\>的顺序与实体类的属性顺序完全相反，但是通过name一对一绑定，运行结果仍旧为:</constructor-arg\></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Computer&#123;name=&apos;组装机1&apos;, mainEngine=MainEngine&#123;name=&apos;戴尔&apos;, type=&apos;T600&apos;, cost=3600&#125;, display=Display&#123;name=&apos;惠普&apos;, type=&apos;V300&apos;, cost=1000&#125;&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="setter方法注入"><a href="#setter方法注入" class="headerlink" title="setter方法注入"></a>setter方法注入</h3><p>setter方法使用<property\>完成依赖注入，如:</property\></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;bean id=&quot;computer&quot; class=&quot;com.ruanshubin.springboot.ioc.entity.Computer&quot;&gt;</span><br><span class="line">		&lt;property name=&quot;name&quot; value=&quot;组装机1&quot;/&gt;</span><br><span class="line">		&lt;property name=&quot;mainEngine&quot; ref=&quot;mainEngine&quot;/&gt;</span><br><span class="line">		&lt;property name=&quot;display&quot; ref=&quot;display&quot;/&gt;</span><br><span class="line">&lt;/bean&gt;</span><br></pre></td></tr></table></figure>
+<p>需要指出的是，除了value和ref标签，Spring还提供了bean、idref、value、null、list、set、map、props。</p>
+<p>具体使用场景，本文不做过多介绍，大家可自行Google。</p>
+<h3 id="自动注入autowire"><a href="#自动注入autowire" class="headerlink" title="自动注入autowire"></a>自动注入autowire</h3><p>除了可以通过配置明确指定bean之间的依赖关系，Spirng还提供了根据bean定义的某些特点将相互依赖的某些bean直接自动绑定的功能。通过<bean\> 的autowire属性，可以指定当前bean定义采用某种类型的自动绑定模式。这样，你就无需手工明确指定该bean定义相关的依赖关系，从而也可以免去一些手工输入的工作量。</bean\></p>
+<p>Spring提供了5种自动绑定模式，即 no、byName、byType、constructor和autodetect。</p>
+<ul>
+<li>no</li>
+</ul>
+<p>默认配置，即不采取自动注入，仅依靠手工配置注入。</p>
+<ul>
+<li>byName</li>
+</ul>
+<p>按照类中声明的实例变量的名称，与XML配置文件中声明的bean定义的beanName的值进行匹配，相匹配的bean定义将被自动绑定到当前实例变量上。</p>
+<p>如我们将上面的computer的注入配置修改为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&lt;bean id=&quot;computer&quot; class=&quot;com.ruanshubin.springboot.ioc.entity.Computer&quot; autowire=&quot;byName&quot;&gt;</span><br><span class="line">&lt;/bean&gt;</span><br></pre></td></tr></table></figure>
+<p>运行结果为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Computer&#123;name=&apos;null&apos;, mainEngine=MainEngine&#123;name=&apos;戴尔&apos;, type=&apos;T600&apos;, cost=3600&#125;, display=Display&#123;name=&apos;惠普&apos;, type=&apos;V300&apos;, cost=1000&#125;&#125;</span><br></pre></td></tr></table></figure>
+<p>程序会自动寻找id为mainEngine、display的bean来完成注入，因为没有id为name的<bean\>，所以不能自动注入，该项为null。</bean\></p>
+<p>可以修改配置，添加无法自动注入的属性:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&lt;bean id=&quot;computer&quot; class=&quot;com.ruanshubin.springboot.ioc.entity.Computer&quot; autowire=&quot;byName&quot;&gt;</span><br><span class="line">		&lt;property name=&quot;name&quot; value=&quot;组装机1&quot;/&gt;</span><br><span class="line">&lt;/bean&gt;</span><br></pre></td></tr></table></figure>
+<p>此时，再次运行:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Computer&#123;name=&apos;组装机1&apos;, mainEngine=MainEngine&#123;name=&apos;戴尔&apos;, type=&apos;T600&apos;, cost=3600&#125;, display=Display&#123;name=&apos;惠普&apos;, type=&apos;V300&apos;, cost=1000&#125;&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>byType</li>
+</ul>
+<p>与byName类似，byType是按照类中声明的实例变量的Type，与XML配置文件中声明的bean的Type进行匹配，相匹配的bean定义将被自动绑定到当前实例变量上。</p>
+<p>如我们将上面的computer的注入配置修改为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&lt;bean id=&quot;computer&quot; class=&quot;com.ruanshubin.springboot.ioc.entity.Computer&quot; autowire=&quot;byType&quot;&gt;</span><br><span class="line">		&lt;property name=&quot;name&quot; value=&quot;组装机1&quot;/&gt;</span><br><span class="line">&lt;/bean&gt;</span><br></pre></td></tr></table></figure>
+<p>运行:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Computer&#123;name=&apos;组装机1&apos;, mainEngine=MainEngine&#123;name=&apos;戴尔&apos;, type=&apos;T600&apos;, cost=3600&#125;, display=Display&#123;name=&apos;惠普&apos;, type=&apos;V300&apos;, cost=1000&#125;&#125;</span><br></pre></td></tr></table></figure>
+<p>此处有个问题，当某个实例变量的Type在Spring容器中存在两个<bean\>，会选择哪个进行注入呢?</bean\></p>
+<p>假设在上述spring-beans.xml文件中添加如下配置:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&lt;bean id=&quot;mainEngine1&quot; class=&quot;com.ruanshubin.springboot.ioc.entity.MainEngine&quot;&gt;</span><br><span class="line">		&lt;constructor-arg name=&quot;cost&quot;&gt;</span><br><span class="line">				&lt;value&gt;3000&lt;/value&gt;</span><br><span class="line">		&lt;/constructor-arg&gt;</span><br><span class="line">		&lt;constructor-arg name=&quot;type&quot;&gt;</span><br><span class="line">				&lt;value&gt;X900&lt;/value&gt;</span><br><span class="line">		&lt;/constructor-arg&gt;</span><br><span class="line">		&lt;constructor-arg name=&quot;name&quot;&gt;</span><br><span class="line">				&lt;value&gt;神州&lt;/value&gt;</span><br><span class="line">		&lt;/constructor-arg&gt;</span><br><span class="line">&lt;/bean&gt;</span><br></pre></td></tr></table></figure>
+<p>此时，Spring容器里存在2个主机实例，我们仍旧通过byType进行自动注入。</p>
+<p>运行主函数:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Exception in thread &quot;main&quot; org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name &apos;computer&apos; defined in class path resource [spring-beans.xml]: Unsatisfied dependency expressed through bean property &apos;mainEngine&apos;; nested exception is org.springframework.beans.factory.NoUniqueBeanDefinitionException: No qualifying bean of type &apos;com.ruanshubin.springboot.ioc.entity.MainEngine&apos; available: expected single matching bean but found 2: mainEngine,mainEngine1</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+<p>很明显，Spring不会帮你做这个决策，当同一个Type存在多个实例时，程序直接会将错误抛出来，由你来做决策。</p>
+<ul>
+<li>constructor</li>
+</ul>
+<p>constructor类型则是针对构造方法参数的类型而进行的自动绑定，它同样是byType类型的绑定模式。不过，constructor是匹配构造方法的参数类型，而不是实例属性的类型。与byType模式类似，如果找到不止一个符合条件的bean定义，那么，容器会返回错误。</p>
+<ul>
+<li>autodetect</li>
+</ul>
+<p>是byType和constructor模式的结合体，如果对象拥有默认无参数的构造方法，容器会优先考虑byType的自动绑定模式。否则，会使用constructor模式。当然，如果通过构造方法注入绑定后还有其他属性没有绑定，容器也会使用byType对剩余的对象属性进行自动绑定。</p>
+<h3 id="依赖检查及继承"><a href="#依赖检查及继承" class="headerlink" title="依赖检查及继承"></a>依赖检查及继承</h3><h4 id="依赖检查"><a href="#依赖检查" class="headerlink" title="依赖检查"></a>依赖检查</h4><p>检查依赖是否按照预期绑定完成，其由dependency-check标签进行约束，存在以下4种模式:</p>
+<ul>
+<li>none</li>
+</ul>
+<p>不做依赖检查</p>
+<ul>
+<li>simple</li>
+</ul>
+<p>容器会对简单属性类型以及相关的collection进行依赖检查，对象引用类型的依赖除外。</p>
+<ul>
+<li>object</li>
+</ul>
+<p>只对对象引用类型依赖进行检查。</p>
+<ul>
+<li>all</li>
+</ul>
+<p>simple和object的结合体。</p>
+<h4 id="继承"><a href="#继承" class="headerlink" title="继承"></a>继承</h4><p>新建服务器类，继承自计算机类:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">public class Server extends Computer&#123;</span><br><span class="line">    // 名称</span><br><span class="line">    private String name;</span><br><span class="line">    // 主机</span><br><span class="line">    private MainEngine mainEngine;</span><br><span class="line">    // 显示器</span><br><span class="line">    private Display display;</span><br><span class="line">    // GPU型号</span><br><span class="line">    private String gpuType;</span><br><span class="line"></span><br><span class="line">    public Server() &#123;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public Server(String name, MainEngine mainEngine, Display display, String gpuType) &#123;</span><br><span class="line">        super(name, mainEngine, display);</span><br><span class="line">        this.gpuType = gpuType;</span><br><span class="line">    &#125;</span><br><span class="line">		</span><br><span class="line">		...</span><br><span class="line">		get/set方法</span><br><span class="line">		toString方法</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+<p>在spring-beans.xml配置文件中增加如下内容:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&lt;bean id=&quot;server&quot; parent=&quot;computer&quot; class=&quot;com.ruanshubin.springboot.ioc.entity.Server&quot;&gt;</span><br><span class="line">		&lt;property name=&quot;gpuType&quot; value=&quot;TC800&quot;/&gt;</span><br><span class="line">&lt;/bean&gt;</span><br></pre></td></tr></table></figure>
+<p>修改启动类:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">public class IocXmlTest &#123;</span><br><span class="line">    public static void main(String[] args) &#123;</span><br><span class="line">        XmlBeanFactory beanFactory = new XmlBeanFactory(new ClassPathResource(&quot;spring-beans.xml&quot;));</span><br><span class="line">        Server server = beanFactory.getBean(&quot;server&quot;, Server.class);</span><br><span class="line">        System.out.println(server);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>运行结果为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Server&#123;name=&apos;组装机1&apos;, mainEngine=MainEngine&#123;name=&apos;戴尔&apos;, type=&apos;T600&apos;, cost=3600&#125;, display=Display&#123;name=&apos;惠普&apos;, type=&apos;V300&apos;, cost=1000&#125;, gpuType=&apos;TC800&apos;&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到，我们通过<strong>parent标签</strong>完成了Bean继承的管理。</p>
+<h2 id="Bean的scope"><a href="#Bean的scope" class="headerlink" title="Bean的scope"></a>Bean的scope</h2><p>Spring2.0前，Bean容器仅有2种作用域类型，即singleton和prototype，2.0后，又引入了3种web相关的scope类型，即request、session、global session。</p>
+<h3 id="singleton"><a href="#singleton" class="headerlink" title="singleton"></a>singleton</h3><ul>
+<li>对象实例</li>
+</ul>
+<p>容器中只存在一个共享实例。</p>
+<ul>
+<li>对象存活时间</li>
+</ul>
+<p>第一次请求被实例化到容器销毁或者退出。</p>
+<h3 id="prototype"><a href="#prototype" class="headerlink" title="prototype"></a>prototype</h3><ul>
+<li>对象实例</li>
+</ul>
+<p>容器中存在多个实例。</p>
+<ul>
+<li>对象存活时间</li>
+</ul>
+<p>每次请求即创建1个新的实例，对象实例返回给请求方之后，容器就不再拥有当前返回对象的引用，请求方需要自己负责当前返回对象的后继生命周期的管理工作，包括该对象的销毁。</p>
+<ul>
+<li>request</li>
+</ul>
+<p>Spring容器，即XmlWebApplicationContext会为每个HTTP请求创建一个全新的Request-Processor对象供当前请求使用，当请求结束后，该对象实例的生命周期即告结束。当同时有10个HTTP请求进来的时候，容器会分别针对这10个请求返回10个全新的RequestProcessor 对象实例，且它们之间互不干扰。</p>
+<ul>
+<li>session</li>
+</ul>
+<p>Spring容器会为每个独立的session创建属于它们自己的全新的UserPreferences对象实例。与request相比，除了拥有session scope的bean的实例具有比request scope的bean可能更长的存活时间，其他方面真是没什么差别。</p>
+<ul>
+<li>global session</li>
+</ul>
+<p>global session只有应用在基于portlet的Web应用程序中才有意义，它映射到portlet的global范围的session。如果在普通的基于servlet的Web应用中使用了这个类型的scope，容器会将其作为普通的session类型的scope对待。</p>
+<ul>
+<li>自定义scope</li>
+</ul>
+<p>在Spring 2.0之后的版本中，容器提供了对scope的扩展点，这样，你可以根据自己的需要或者应用的场景，来添加自定义的scope类型。需要说明的是，默认的singleton和prototype是硬编码到代码中的，而request、session和global session，包括自定义scope类型，则属于可扩展的scope行列，它们都实现了org.springframework.beans.factory.config.Scope接口。</p>
+<p>具体如何进行自定义scope的设计开发，以后我们专门写篇文章介绍。</p>
+<p>下面看一个有意思的东西:</p>
+<p>去除掉MainEngine的toString()方法，并将mainEngine的scope设置为prototype。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"> &lt;bean id=&quot;mainEngine&quot; class=&quot;com.ruanshubin.springboot.ioc.entity.MainEngine&quot; scope=&quot;prototype&quot;&gt;</span><br><span class="line">		&lt;constructor-arg name=&quot;cost&quot;&gt;</span><br><span class="line">				&lt;value&gt;3600&lt;/value&gt;</span><br><span class="line">		&lt;/constructor-arg&gt;</span><br><span class="line">		&lt;constructor-arg name=&quot;type&quot;&gt;</span><br><span class="line">				&lt;value&gt;T600&lt;/value&gt;</span><br><span class="line">		&lt;/constructor-arg&gt;</span><br><span class="line">		&lt;constructor-arg name=&quot;name&quot;&gt;</span><br><span class="line">				&lt;value&gt;戴尔&lt;/value&gt;</span><br><span class="line">		&lt;/constructor-arg&gt;</span><br><span class="line">&lt;/bean&gt;</span><br></pre></td></tr></table></figure>
+<p>修改主函数:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">public class IocXmlTest &#123;</span><br><span class="line">    public static void main(String[] args) &#123;</span><br><span class="line">        XmlBeanFactory beanFactory = new XmlBeanFactory(new ClassPathResource(&quot;spring-beans.xml&quot;));</span><br><span class="line">        Computer computer = (Computer) beanFactory.getBean(&quot;computer&quot;);</span><br><span class="line">        System.out.println(computer.getMainEngine());</span><br><span class="line">        System.out.println(computer.getMainEngine());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>运行:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">com.ruanshubin.springboot.ioc.entity.MainEngine@4dfa3a9d</span><br><span class="line">com.ruanshubin.springboot.ioc.entity.MainEngine@4dfa3a9d</span><br></pre></td></tr></table></figure>
+<p>显然，2次获取的MainEngine实例是同一个。</p>
+<p>那么，如何在每次获取MainEngine时，总返回新创建的实例呢，可以使用<lookup-method\>标签:</lookup-method\></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&lt;bean id=&quot;computer&quot; class=&quot;com.ruanshubin.springboot.ioc.entity.Computer&quot;&gt;</span><br><span class="line">		&lt;property name=&quot;name&quot; value=&quot;组装机1&quot;/&gt;</span><br><span class="line">		&lt;property name=&quot;mainEngine&quot; ref=&quot;mainEngine&quot;/&gt;</span><br><span class="line">		&lt;property name=&quot;display&quot; ref=&quot;display&quot;/&gt;</span><br><span class="line">		&lt;lookup-method name=&quot;getMainEngine&quot; bean=&quot;mainEngine&quot;/&gt;</span><br><span class="line">&lt;/bean&gt;</span><br></pre></td></tr></table></figure>
+<p>再次运行主函数:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">com.ruanshubin.springboot.ioc.entity.MainEngine@480bdb19</span><br><span class="line">com.ruanshubin.springboot.ioc.entity.MainEngine@2a556333</span><br></pre></td></tr></table></figure>
+<p>达到目的。</p>
+<p>同时，可以对Computer的getMainEngine进行改造，使其每次从BeanFactory中取MainEngine得实例，操作方法是使Computer实现BeanFactoryAware接口。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">public class Computer implements BeanFactoryAware &#123;</span><br><span class="line">	</span><br><span class="line">    private BeanFactory beanFactory;</span><br><span class="line">    </span><br><span class="line">		@Override</span><br><span class="line">    public void setBeanFactory(BeanFactory beanFactory) throws BeansException &#123;</span><br><span class="line">        this.beanFactory = beanFactory;</span><br><span class="line">    &#125;</span><br><span class="line">    // 名称</span><br><span class="line">    private String name;</span><br><span class="line">    // 主机</span><br><span class="line">    private MainEngine mainEngine;</span><br><span class="line">    // 显示器</span><br><span class="line">    private Display display;</span><br><span class="line"></span><br><span class="line">    public Computer() &#123;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public Computer(String name, MainEngine mainEngine, Display display) &#123;</span><br><span class="line">        this.name = name;</span><br><span class="line">        this.mainEngine = mainEngine;</span><br><span class="line">        this.display = display;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public String getName() &#123;</span><br><span class="line">        return name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public void setName(String name) &#123;</span><br><span class="line">        this.name = name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public MainEngine getMainEngine() &#123;</span><br><span class="line">        return beanFactory.getBean(&quot;mainEngine&quot;, MainEngine.class);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public void setMainEngine(MainEngine mainEngine) &#123;</span><br><span class="line">        this.mainEngine = mainEngine;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public Display getDisplay() &#123;</span><br><span class="line">        return display;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public void setDisplay(Display display) &#123;</span><br><span class="line">        this.display = display;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>此时，去掉以下配置，运行上述主程序:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;lookup-method name=&quot;getMainEngine&quot; bean=&quot;mainEngine&quot;/&gt;</span><br></pre></td></tr></table></figure>
+<p>运行结果为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">com.ruanshubin.springboot.ioc.entity.MainEngine@402a079c</span><br><span class="line">com.ruanshubin.springboot.ioc.entity.MainEngine@59ec2012</span><br></pre></td></tr></table></figure>
+<p>仍然可达到目的。</p>
+<p>当然，如果不想实现BeanFactoryAware接口，也可以采用ObjectFactoryCreatingFactoryBean方式。</p>
+<p>ObjectFactoryCreatingFactoryBean是Spring提供的一个FactoryBean实现，它返回一个ObjectFactory实例。从ObjectFactoryCreatingFactoryBean返回的这个ObjectFactory实例可以为我们返回容器管理的相关对象。</p>
+<p>首先，在spring-beans.xml里配置ObjectFactoryCreatingFactoryBean，并注入主机类。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">&lt;bean id=&quot;objectFactory&quot; class=&quot;org.springframework.beans.factory.config.ObjectFactoryCreatingFactoryBean&quot;&gt;</span><br><span class="line">		&lt;property name=&quot;targetBeanName&quot;&gt;</span><br><span class="line">				&lt;idref bean=&quot;mainEngine&quot;/&gt;</span><br><span class="line">		&lt;/property&gt;</span><br><span class="line">&lt;/bean&gt;</span><br><span class="line"></span><br><span class="line">&lt;bean id=&quot;computer&quot; class=&quot;com.ruanshubin.springboot.ioc.entity.Computer&quot;&gt;</span><br><span class="line">		&lt;property name=&quot;name&quot; value=&quot;组装机1&quot;/&gt;     </span><br><span class="line">		&lt;property name=&quot;display&quot; ref=&quot;display&quot;/&gt;</span><br><span class="line">		&lt;property name=&quot;objectFactory&quot;&gt;</span><br><span class="line">				&lt;ref bean=&quot;objectFactory&quot;/&gt;</span><br><span class="line">		&lt;/property&gt;</span><br><span class="line">&lt;/bean&gt;</span><br></pre></td></tr></table></figure>
+<p>同时修改Computer类:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">public class Computer&#123;</span><br><span class="line">	</span><br><span class="line">    private ObjectFactory objectFactory;</span><br><span class="line"></span><br><span class="line">    public void setObjectFactory(ObjectFactory objectFactory) &#123;</span><br><span class="line">        this.objectFactory = objectFactory;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    // 名称</span><br><span class="line">    private String name;</span><br><span class="line">    // 主机</span><br><span class="line">    private MainEngine mainEngine;</span><br><span class="line">    // 显示器</span><br><span class="line">    private Display display;</span><br><span class="line"></span><br><span class="line">    public Computer() &#123;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public Computer(String name, MainEngine mainEngine, Display display) &#123;</span><br><span class="line">        this.name = name;</span><br><span class="line">        this.mainEngine = mainEngine;</span><br><span class="line">        this.display = display;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public String getName() &#123;</span><br><span class="line">        return name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public void setName(String name) &#123;</span><br><span class="line">        this.name = name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public MainEngine getMainEngine() &#123;</span><br><span class="line">        return (MainEngine) objectFactory.getObject();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public void setMainEngine(MainEngine mainEngine) &#123;</span><br><span class="line">        this.mainEngine = mainEngine;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public Display getDisplay() &#123;</span><br><span class="line">        return display;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public void setDisplay(Display display) &#123;</span><br><span class="line">        this.display = display;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>运行结果为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">com.ruanshubin.springboot.ioc.entity.MainEngine@5cb9f472</span><br><span class="line">com.ruanshubin.springboot.ioc.entity.MainEngine@56ef9176</span><br></pre></td></tr></table></figure>
+<p>写着写着就写多了，更多Spring-IOC容器XML配置的东西，我们后面有机会再讲。</p>
+<p><img src="https://upload-images.jianshu.io/upload_images/10431632-a592bb9d7a331a0a.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt="行走的思想者"></p>
+<p>欢迎您扫一扫上面的二维码，关注我的微信公众号！</p>
+
+      
+    </div>
+    
+    
+    
+	
+	<div>
+	
+		<div>
+    
+        <div style="text-align:center;color: #ccc;font-size:14px;">-------------本文结束<i class="fa fa-paw"></i>感谢您的阅读-------------</div>
+    
+</div>
+	
+	</div>
+
+    
+      <div>
+        <div id="wechat_subscriber" style="display: block; padding: 10px 0; margin: 20px auto; width: 100%; text-align: center">
+    <img id="wechat_subscriber_qcode" src="/uploads/wechat-qcode.jpg" alt="Ruan Shubin wechat" style="width: 200px; max-width: 100%;">
+    <div>欢迎您扫一扫上面的二维码，关注我的微信公众号！</div>
+</div>
+
+      </div>
+    
+
+    
+
+    
+      <div>
+        <ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者：</strong>
+    Ruan Shubin
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="http://ruanshubin.top/2019/06/05/Spring-IOC的XML配置/" title="Spring-IOC的XML配置">http://ruanshubin.top/2019/06/05/Spring-IOC的XML配置/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>
+    本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/" rel="external nofollow" target="_blank">CC BY-NC-SA 3.0</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+
+      </div>
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Spring/" rel="tag"><i class="fa fa-tag"></i> Spring</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/06/04/Spring容器之BeanFactory/" rel="next" title="Spring容器之BeanFactory">
+                <i class="fa fa-chevron-left"></i> Spring容器之BeanFactory
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/06/13/Spark从入门到放弃--1概述/" rel="prev" title="Spark从入门到放弃--1概述">
+                Spark从入门到放弃--1概述 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+        <!-- JiaThis Button BEGIN -->
+<div class="jiathis_style">
+<span class="jiathis_txt">分享到：</span>
+<a class="jiathis_button_weixin">微信</a>
+<a class="jiathis_button_qzone">QQ空间</a>
+<a class="jiathis_button_tsina">新浪微博</a>
+<a class="jiathis_button_zhihu">知乎</a>
+<a class="jiathis_button_share">一键分享</a>
+
+<a href="http://www.jiathis.com/share?uid=2140465" class="jiathis jiathis_txt jiathis_separator jtico jtico_jiathis" target="_blank">更多</a>
+<a class="jiathis_counter_style"></a>
+</div>
+<script type="text/javascript">
+var jiathis_config={
+  data_track_clickback:true,
+  summary:"",
+  shortUrl:false,
+  hideMore:false
+}
+</script>
+<script type="text/javascript" src="http://v3.jiathis.com/code/jia.js?uid=" charset="utf-8"></script>
+<!-- JiaThis Button END -->
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div class="comments" id="comments">
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8zMzc1NC8xMDMwOA"></div>
+    </div>
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/avatar.gif" alt="Ruan Shubin">
+            
+              <p class="site-author-name" itemprop="name">Ruan Shubin</p>
+              <p class="site-description motion-element" itemprop="description">一万年太久，只争朝夕！</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives">
+              
+                  <span class="site-state-item-count">23</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">8</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">20</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+            <div class="feed-link motion-element">
+              <a href="/atom.xml" rel="alternate">
+                <i class="fa fa-rss"></i>
+                RSS
+              </a>
+            </div>
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/Ruanshubin" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://weibo.com/u/2487162561" target="_blank" title="Weibo">
+                      
+                        <i class="fa fa-fw fa-weibo"></i>Weibo</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://blog.csdn.net/wenwu_both" target="_blank" title="CSDN">
+                      
+                        <i class="fa fa-fw fa-book"></i>CSDN</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="http://tcrl.zju.edu.cn/" target="_blank" title="Lab">
+                      
+                        <i class="fa fa-fw fa-users"></i>Lab</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#引言"><span class="nav-number">1.</span> <span class="nav-text">引言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#和"><span class="nav-number">2.</span> <span class="nav-text">和</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#null"><span class="nav-number">2.1.</span> <span class="nav-text"></span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#、和"><span class="nav-number">2.2.</span> <span class="nav-text">、和</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#-1"><span class="nav-number">2.3.</span> <span class="nav-text"></span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#依赖注入"><span class="nav-number">3.</span> <span class="nav-text">依赖注入</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#构造方法注入"><span class="nav-number">3.1.</span> <span class="nav-text">构造方法注入</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#setter方法注入"><span class="nav-number">3.2.</span> <span class="nav-text">setter方法注入</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#自动注入autowire"><span class="nav-number">3.3.</span> <span class="nav-text">自动注入autowire</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#依赖检查及继承"><span class="nav-number">3.4.</span> <span class="nav-text">依赖检查及继承</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#依赖检查"><span class="nav-number">3.4.1.</span> <span class="nav-text">依赖检查</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#继承"><span class="nav-number">3.4.2.</span> <span class="nav-text">继承</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Bean的scope"><span class="nav-number">4.</span> <span class="nav-text">Bean的scope</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#singleton"><span class="nav-number">4.1.</span> <span class="nav-text">singleton</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#prototype"><span class="nav-number">4.2.</span> <span class="nav-text">prototype</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Ruan Shubin</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+      <span class="post-meta-item-text">全站总字数&#58;</span>
+    
+    <span title="全站总字数">57.8k</span>
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Pisces</a> v5.1.4</div>
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+
+  
+</div>
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  <script type="text/javascript">
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url);
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x" /></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x" /></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+  
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdn.bootcss.com/mathjax/2.7.1/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+
+  
+
+  
+
+</body>
+</html>

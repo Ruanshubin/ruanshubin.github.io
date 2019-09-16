@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=5.1.4">
+
+
+
+
+
+
+
+  <meta name="keywords" content="大数据,Flink,">
+
+
+
+
+
+  <link rel="alternate" href="/atom.xml" title="阮树斌 | 技术改变生活" type="application/atom+xml">
+
+
+
+
+
+
+<meta name="description" content="Window 可以看到，GlobalWindow和TimeWindow均继承自抽象类Window，其源码如下： 123public abstract class Window &amp;#123;	public abstract long maxTimestamp();&amp;#125; 可以看出，Window抽象类仅有一个maxTimestamp()方法用于获取仍属于该窗口的最大时间戳。 TimeWindow">
+<meta name="keywords" content="大数据,Flink">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Flink的Window源码剖析">
+<meta property="og:url" content="http://ruanshubin.top/2019/08/19/Flink的Window源码剖析/index.html">
+<meta property="og:site_name" content="阮树斌 | 技术改变生活">
+<meta property="og:description" content="Window 可以看到，GlobalWindow和TimeWindow均继承自抽象类Window，其源码如下： 123public abstract class Window &amp;#123;	public abstract long maxTimestamp();&amp;#125; 可以看出，Window抽象类仅有一个maxTimestamp()方法用于获取仍属于该窗口的最大时间戳。 TimeWindow">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="http://ruanshubin.top/2019/08/19/Flink的Window源码剖析/1.jpg">
+<meta property="og:image" content="http://ruanshubin.top/2019/08/19/Flink的Window源码剖析/2.jpg">
+<meta property="og:image" content="http://ruanshubin.top/2019/08/19/Flink的Window源码剖析/3.jpg">
+<meta property="og:image" content="http://ruanshubin.top/2019/08/19/Flink的Window源码剖析/4.jpg">
+<meta property="og:image" content="http://ruanshubin.top/2019/08/19/Flink的Window源码剖析/6.jpg">
+<meta property="og:image" content="http://ruanshubin.top/2019/08/19/Flink的Window源码剖析/5.jpg">
+<meta property="og:image" content="http://ruanshubin.top/2019/08/19/Flink的Window源码剖析/7.jpg">
+<meta property="og:image" content="http://ruanshubin.top/2019/08/19/Flink的Window源码剖析/8.jpg">
+<meta property="og:updated_time" content="2019-09-16T05:45:59.279Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Flink的Window源码剖析">
+<meta name="twitter:description" content="Window 可以看到，GlobalWindow和TimeWindow均继承自抽象类Window，其源码如下： 123public abstract class Window &amp;#123;	public abstract long maxTimestamp();&amp;#125; 可以看出，Window抽象类仅有一个maxTimestamp()方法用于获取仍属于该窗口的最大时间戳。 TimeWindow">
+<meta name="twitter:image" content="http://ruanshubin.top/2019/08/19/Flink的Window源码剖析/1.jpg">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://ruanshubin.top/2019/08/19/Flink的Window源码剖析/">
+
+
+
+
+
+  <title>Flink的Window源码剖析 | 阮树斌 | 技术改变生活</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+
+   <canvas class="fireworks" style="position: fixed;left: 0;top: 0;z-index: 1; pointer-events: none;"></canvas> 
+   <script type="text/javascript" src="//cdn.bootcss.com/animejs/2.2.0/anime.min.js"></script> 
+   <script type="text/javascript" src="/js/src/fireworks.js"></script>
+
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+	<a href="https://github.com/Ruanshubin" class="github-corner" aria-label="View source on Github">
+	<svg width="80" height="80" viewbox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true">
+	<path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"/>
+	<path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"/>
+	<path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"/>
+	</svg>
+	</a>
+	<style>
+	.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}
+	</style>
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">阮树斌 | 技术改变生活</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">交通 | 数据 | 算法 <br> Java | Python | Scala | Matlab | GIS</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-首页">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-分类">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br>
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-归档">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-标签">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-关于">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br>
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+	
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://ruanshubin.top/2019/08/19/Flink的Window源码剖析/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Ruan Shubin">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="阮树斌 | 技术改变生活">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Flink的Window源码剖析</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-08-19T18:52:00+08:00">
+                2019-08-19
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Flink/" itemprop="url" rel="index">
+                    <span itemprop="name">Flink</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-wordcount">
+              
+                
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">字数统计&#58;</span>
+                
+                <span title="字数统计">
+                  4.8k 字
+                </span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">
+                  23 分钟
+                </span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="Window"><a href="#Window" class="headerlink" title="Window"></a>Window</h2><p><img src="/2019/08/19/Flink的Window源码剖析/1.jpg" alt=""></p>
+<p>可以看到，GlobalWindow和TimeWindow均继承自抽象类Window，其源码如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">public abstract class Window &#123;</span><br><span class="line">	public abstract long maxTimestamp();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看出，Window抽象类仅有一个maxTimestamp()方法用于获取仍属于该窗口的最大时间戳。</p>
+<h3 id="TimeWindow"><a href="#TimeWindow" class="headerlink" title="TimeWindow"></a>TimeWindow</h3><p>首先看TimeWindow的数据结构：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br></pre></td><td class="code"><pre><span class="line">public class TimeWindow extends Window &#123;</span><br><span class="line"></span><br><span class="line">	private final long start;</span><br><span class="line">	private final long end;</span><br><span class="line"></span><br><span class="line">	public TimeWindow(long start, long end) &#123;</span><br><span class="line">		this.start = start;</span><br><span class="line">		this.end = end;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	</span><br><span class="line">	public long getStart() &#123;</span><br><span class="line">		return start;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public long getEnd() &#123;</span><br><span class="line">		return end;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public long maxTimestamp() &#123;</span><br><span class="line">		return end - 1;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public boolean equals(Object o) &#123;</span><br><span class="line">		if (this == o) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line">		if (o == null || getClass() != o.getClass()) &#123;</span><br><span class="line">			return false;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		TimeWindow window = (TimeWindow) o;</span><br><span class="line"></span><br><span class="line">		return end == window.end &amp;&amp; start == window.start;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public int hashCode() &#123;</span><br><span class="line">		return MathUtils.longToIntWithBitMixing(start + end);</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public String toString() &#123;</span><br><span class="line">		return &quot;TimeWindow&#123;&quot; +</span><br><span class="line">				&quot;start=&quot; + start +</span><br><span class="line">				&quot;, end=&quot; + end +</span><br><span class="line">				&apos;&#125;&apos;;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public boolean intersects(TimeWindow other) &#123;</span><br><span class="line">		return this.start &lt;= other.end &amp;&amp; this.end &gt;= other.start;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public TimeWindow cover(TimeWindow other) &#123;</span><br><span class="line">		return new TimeWindow(Math.min(start, other.start), Math.max(end, other.end));</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	......</span><br><span class="line">	</span><br><span class="line">	public static void mergeWindows(Collection&lt;TimeWindow&gt; windows, MergingWindowAssigner.MergeCallback&lt;TimeWindow&gt; c) &#123;</span><br><span class="line"></span><br><span class="line">		List&lt;TimeWindow&gt; sortedWindows = new ArrayList&lt;&gt;(windows);</span><br><span class="line"></span><br><span class="line">		Collections.sort(sortedWindows, new Comparator&lt;TimeWindow&gt;() &#123;</span><br><span class="line">			@Override</span><br><span class="line">			public int compare(TimeWindow o1, TimeWindow o2) &#123;</span><br><span class="line">				return Long.compare(o1.getStart(), o2.getStart());</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;);</span><br><span class="line"></span><br><span class="line">		List&lt;Tuple2&lt;TimeWindow, Set&lt;TimeWindow&gt;&gt;&gt; merged = new ArrayList&lt;&gt;();</span><br><span class="line">		Tuple2&lt;TimeWindow, Set&lt;TimeWindow&gt;&gt; currentMerge = null;</span><br><span class="line"></span><br><span class="line">		for (TimeWindow candidate: sortedWindows) &#123;</span><br><span class="line">			if (currentMerge == null) &#123;</span><br><span class="line">				currentMerge = new Tuple2&lt;&gt;();</span><br><span class="line">				currentMerge.f0 = candidate;</span><br><span class="line">				currentMerge.f1 = new HashSet&lt;&gt;();</span><br><span class="line">				currentMerge.f1.add(candidate);</span><br><span class="line">			&#125; else if (currentMerge.f0.intersects(candidate)) &#123;</span><br><span class="line">				currentMerge.f0 = currentMerge.f0.cover(candidate);</span><br><span class="line">				currentMerge.f1.add(candidate);</span><br><span class="line">			&#125; else &#123;</span><br><span class="line">				merged.add(currentMerge);</span><br><span class="line">				currentMerge = new Tuple2&lt;&gt;();</span><br><span class="line">				currentMerge.f0 = candidate;</span><br><span class="line">				currentMerge.f1 = new HashSet&lt;&gt;();</span><br><span class="line">				currentMerge.f1.add(candidate);</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		if (currentMerge != null) &#123;</span><br><span class="line">			merged.add(currentMerge);</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		for (Tuple2&lt;TimeWindow, Set&lt;TimeWindow&gt;&gt; m: merged) &#123;</span><br><span class="line">			if (m.f1.size() &gt; 1) &#123;</span><br><span class="line">				c.merge(m.f1, m.f0);</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public static long getWindowStartWithOffset(long timestamp, long offset, long windowSize) &#123;</span><br><span class="line">		return timestamp - (timestamp - offset + windowSize) % windowSize;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>该窗口主要用于实现时间驱动的相关操作</strong>。</p>
+<p>可以看到。TimeWindow由start和end2个时间戳组成，最大时间戳为end-1，同时，TimeWindow提供了getWindowStartWithOffset静态方法，用于获取时间戳所属时间窗的起点，其中的offset为偏移量。例如，没有偏移量的话，小时滚动窗口将按时间纪元来对齐，也就是1:00:00—1:59:59,2:00:00—2:59:59等，如果你指定了15分钟的偏移，你将得到1:15:00—2:14:59,2:15:00—3:14:59等。时间偏移主要用于调准非0时区的窗口，例如:在中国你需要指定8小时的时间偏移。</p>
+<p>intersects方法用于判断2个时间窗是否有交集，cover方法用于求2个时间窗的合集，mergeWindows用于将时间窗集合进行合并，该方法是实现Session Window的关键。</p>
+<p>对于session window来说，我们需要窗口变得更灵活。基本的思想是这样的：SessionWindows assigner 会为每个进入的元素分配一个窗口，该窗口以元素的时间戳作为起始点，时间戳加会话超时时间为结束点，也就是该窗口为[timestamp, timestamp+sessionGap)。比如我们现在到了两个元素，它们被分配到两个独立的窗口中，两个窗口目前不相交，如图：</p>
+<p><img src="/2019/08/19/Flink的Window源码剖析/2.jpg" alt=""></p>
+<p>当第三个元素进入时，分配到的窗口与现有的两个窗口发生了叠加，情况变成了这样：</p>
+<p><img src="/2019/08/19/Flink的Window源码剖析/3.jpg" alt=""></p>
+<p>由于我们支持了窗口的合并，WindowAssigner可以合并这些窗口。它会遍历现有的窗口，并告诉系统哪些窗口需要合并成新的窗口。Flink 会将这些窗口进行合并，合并的主要内容有两部分：</p>
+<ul>
+<li>需要合并的窗口的底层状态的合并（也就是窗口中缓存的数据，或者对于聚合窗口来说是一个聚合值）；</li>
+<li>需要合并的窗口的Trigger的合并（比如对于EventTime来说，会删除旧窗口注册的定时器，并注册新窗口的定时器）。</li>
+</ul>
+<p>总之，结果是三个元素现在在同一个窗口中：</p>
+<p><img src="/2019/08/19/Flink的Window源码剖析/4.jpg" alt=""></p>
+<p>需要注意的是，对于每一个新进入的元素，都会分配一个属于该元素的窗口，都会检查并合并现有的窗口。在触发窗口计算之前，每一次都会检查该窗口是否可以和其他窗口合并，直到trigger触发后，会将该窗口从窗口列表中移除。对于 event time 来说，窗口的触发是要等到大于窗口结束时间的 watermark 到达，当watermark没有到，窗口会一直缓存着。所以基于这种机制，可以做到对乱序消息的支持。</p>
+<p>这里有一个优化点可以做，因为每一个新进入的元素都会创建属于该元素的窗口，然后合并。如果新元素连续不断地进来，并且新元素的窗口一直都是可以和之前的窗口重叠合并的，那么其实这里多了很多不必要的创建窗口、合并窗口的操作，我们可以直接将新元素放到那个已存在的窗口，然后扩展该窗口的大小，看起来就像和新元素的窗口合并了一样。</p>
+<h3 id="GlobalWindow"><a href="#GlobalWindow" class="headerlink" title="GlobalWindow"></a>GlobalWindow</h3><p>接着看GlobalWindow：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">public class GlobalWindow extends Window &#123;</span><br><span class="line"></span><br><span class="line">	private static final GlobalWindow INSTANCE = new GlobalWindow();</span><br><span class="line"></span><br><span class="line">	private GlobalWindow() &#123; &#125;</span><br><span class="line"></span><br><span class="line">	public static GlobalWindow get() &#123;</span><br><span class="line">		return INSTANCE;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public long maxTimestamp() &#123;</span><br><span class="line">		return Long.MAX_VALUE;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public boolean equals(Object o) &#123;</span><br><span class="line">		return this == o || !(o == null || getClass() != o.getClass());</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public int hashCode() &#123;</span><br><span class="line">		return 0;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public String toString() &#123;</span><br><span class="line">		return &quot;GlobalWindow&quot;;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * 序列化相关操作</span><br><span class="line">	 */</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>GlobalWindow提供了get()静态方法用于获取GlobalWindow实例，maxTimestamp()统一返回Long的最大值，而hashCode统一返回0。</p>
+<p><strong>该窗口主要用于实现数据驱动的相关操作</strong>。</p>
+<h2 id="WindowAssigner"><a href="#WindowAssigner" class="headerlink" title="WindowAssigner"></a>WindowAssigner</h2><p>顾名思义，WindowAssigner用来决定某个元素被分配到哪个/哪些窗口中去。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">public abstract class WindowAssigner&lt;T, W extends Window&gt; implements Serializable &#123;</span><br><span class="line">	private static final long serialVersionUID = 1L;</span><br><span class="line"></span><br><span class="line">	public abstract Collection&lt;W&gt; assignWindows(T element, long timestamp, WindowAssignerContext context);</span><br><span class="line"></span><br><span class="line">	public abstract Trigger&lt;T, W&gt; getDefaultTrigger(StreamExecutionEnvironment env);</span><br><span class="line"></span><br><span class="line">	public abstract TypeSerializer&lt;W&gt; getWindowSerializer(ExecutionConfig executionConfig);</span><br><span class="line"></span><br><span class="line">	public abstract boolean isEventTime();</span><br><span class="line"></span><br><span class="line">	public abstract static class WindowAssignerContext &#123;</span><br><span class="line"></span><br><span class="line">		public abstract long getCurrentProcessingTime();</span><br><span class="line"></span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>首先看assignWindows方法，其输入element为待分配的元素，timestamp为element持有的时间戳，context为该分配器的上下文容器，返回值为element所属的窗口集合，也就说，同一条数据元素，可能会被分配到多个窗口中去。但并不是将该数据复制到多个窗口中去，Window本身只是一个ID标识符，其内部可能存储了一些元数据，如TimeWindow中有开始和结束时间，但是并不会存储窗口中的元素。窗口中的元素实际存储在 Key/Value State 中，key为Window，value为元素集合（或聚合值）。为了保证窗口的容错性，该实现依赖了 Flink 的 State 机制（参见 state 文档）。</p>
+<p>接着看其他方法，getDefaultTrigger用于返回该窗口默认的触发器，getWindowSerializer用于返回窗口的序列化器，isEventTime用于判断是否基于event time来进行元素的分配。</p>
+<p>最后看一下WindowAssignerContext这个上下文容器，其是一个内部静态抽象类，提供了getCurrentProcessingTime方法用于获取当前的processing time。</p>
+<p><img src="/2019/08/19/Flink的Window源码剖析/6.jpg" alt=""></p>
+<p><img src="/2019/08/19/Flink的Window源码剖析/5.jpg" alt=""></p>
+<p>看一下WindowAssigner的实现类，GlobalWindows主要用于实现CountWindow，MergingWindowAssigner主要用于实现SessionWindow，剩下的分别基于processing time和event time实现了翻滚窗口和滑动窗口。</p>
+<p>先捡软柿子捏，首先看较为简单的GlobalWindows：</p>
+<h3 id="GlobalWindows"><a href="#GlobalWindows" class="headerlink" title="GlobalWindows"></a>GlobalWindows</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line">public class GlobalWindows extends WindowAssigner&lt;Object, GlobalWindow&gt; &#123;</span><br><span class="line">	private static final long serialVersionUID = 1L;</span><br><span class="line"></span><br><span class="line">	private GlobalWindows() &#123;&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public Collection&lt;GlobalWindow&gt; assignWindows(Object element, long timestamp, WindowAssignerContext context) &#123;</span><br><span class="line">		return Collections.singletonList(GlobalWindow.get());</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public Trigger&lt;Object, GlobalWindow&gt; getDefaultTrigger(StreamExecutionEnvironment env) &#123;</span><br><span class="line">		return new NeverTrigger();</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public String toString() &#123;</span><br><span class="line">		return &quot;GlobalWindows()&quot;;</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">	public static GlobalWindows create() &#123;</span><br><span class="line">		return new GlobalWindows();</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Internal</span><br><span class="line">	public static class NeverTrigger extends Trigger&lt;Object, GlobalWindow&gt; &#123;</span><br><span class="line">		private static final long serialVersionUID = 1L;</span><br><span class="line"></span><br><span class="line">		@Override</span><br><span class="line">		public TriggerResult onElement(Object element, long timestamp, GlobalWindow window, TriggerContext ctx) &#123;</span><br><span class="line">			return TriggerResult.CONTINUE;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		@Override</span><br><span class="line">		public TriggerResult onEventTime(long time, GlobalWindow window, TriggerContext ctx) &#123;</span><br><span class="line">			return TriggerResult.CONTINUE;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		@Override</span><br><span class="line">		public TriggerResult onProcessingTime(long time, GlobalWindow window, TriggerContext ctx) &#123;</span><br><span class="line">			return TriggerResult.CONTINUE;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		@Override</span><br><span class="line">		public void clear(GlobalWindow window, TriggerContext ctx) throws Exception &#123;&#125;</span><br><span class="line"></span><br><span class="line">		@Override</span><br><span class="line">		public void onMerge(GlobalWindow window, OnMergeContext ctx) &#123;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public TypeSerializer&lt;GlobalWindow&gt; getWindowSerializer(ExecutionConfig executionConfig) &#123;</span><br><span class="line">		return new GlobalWindow.Serializer();</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public boolean isEventTime() &#123;</span><br><span class="line">		return false;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>GlobalWindows提供了create静态方法用于返回GlobalWindows实例，assignWindows方法会将上游的元素全都分配到一个单例GlobalWindow中，其默认的Trigger为NeverTrigger，即永不触发fire计算。</p>
+<h3 id="TumblingProcessingTimeWindows和TumblingEventTimeWindows"><a href="#TumblingProcessingTimeWindows和TumblingEventTimeWindows" class="headerlink" title="TumblingProcessingTimeWindows和TumblingEventTimeWindows"></a>TumblingProcessingTimeWindows和TumblingEventTimeWindows</h3><p>TumblingProcessingTimeWindows和TumblingEventTimeWindows的assignWindows方法：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">// TumblingProcessingTimeWindows</span><br><span class="line">@Override</span><br><span class="line">public Collection&lt;TimeWindow&gt; assignWindows(Object element, long timestamp, WindowAssignerContext context) &#123;</span><br><span class="line">	// 获取当前的processing time</span><br><span class="line">	final long now = context.getCurrentProcessingTime();</span><br><span class="line">	// 计算当前processing time所属窗口的start</span><br><span class="line">	long start = TimeWindow.getWindowStartWithOffset(now, offset, size);</span><br><span class="line">	return Collections.singletonList(new TimeWindow(start, start + size));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// TumblingEventTimeWindows</span><br><span class="line">@Override</span><br><span class="line">public Collection&lt;TimeWindow&gt; assignWindows(Object element, long timestamp, WindowAssignerContext context) &#123;</span><br><span class="line">	if (timestamp &gt; Long.MIN_VALUE) &#123;</span><br><span class="line">		// Long.MIN_VALUE is currently assigned when no timestamp is present</span><br><span class="line">		// 以元素自带的时间戳(event time)计算窗口的start</span><br><span class="line">		long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, size);</span><br><span class="line">		return Collections.singletonList(new TimeWindow(start, start + size));</span><br><span class="line">	&#125; else &#123;</span><br><span class="line">		throw new RuntimeException(&quot;Record has Long.MIN_VALUE timestamp (= no timestamp marker). &quot; +</span><br><span class="line">				&quot;Is the time characteristic set to &apos;ProcessingTime&apos;, or did you forget to call &quot; +</span><br><span class="line">				&quot;&apos;DataStream.assignTimestampsAndWatermarks(...)&apos;?&quot;);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到，其逻辑是相似的，区别就在于窗口的start时间，一个使用的是WindowAssignerContext获取的当前时间戳，另外一个则是利用元素的EventTime，通过TimeWindow的getWindowStartWithOffset方法计算得到的。</p>
+<h3 id="SlidingProcessingTimeWindows和SlidingEventTimeWindows"><a href="#SlidingProcessingTimeWindows和SlidingEventTimeWindows" class="headerlink" title="SlidingProcessingTimeWindows和SlidingEventTimeWindows"></a>SlidingProcessingTimeWindows和SlidingEventTimeWindows</h3><p>接着看滑动窗口，以SlidingProcessingTimeWindows为例：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">public Collection&lt;TimeWindow&gt; assignWindows(Object element, long timestamp, WindowAssignerContext context) &#123;</span><br><span class="line">	// 获取当前系统的Processing Time</span><br><span class="line">	timestamp = context.getCurrentProcessingTime();</span><br><span class="line">	// 初始化窗口集合，窗口个数为size/slide</span><br><span class="line">	List&lt;TimeWindow&gt; windows = new ArrayList&lt;&gt;((int) (size / slide));</span><br><span class="line">	long lastStart = TimeWindow.getWindowStartWithOffset(timestamp, offset, slide);</span><br><span class="line">	// 计算窗口集合</span><br><span class="line">	for (long start = lastStart;</span><br><span class="line">		start &gt; timestamp - size;</span><br><span class="line">		start -= slide) &#123;</span><br><span class="line">		windows.add(new TimeWindow(start, start + size));</span><br><span class="line">	&#125;</span><br><span class="line">	return windows;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上述代码可能不够直观，我们以一个简单例子来解释上述方法。</p>
+<p>假设基础数据如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">timestamp=73;</span><br><span class="line">offset=6;</span><br><span class="line">size=60;</span><br><span class="line">slide=10;</span><br></pre></td></tr></table></figure>
+<p>计算过程：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">集合的大小为：</span><br><span class="line">60/10=6</span><br><span class="line">上一次起始起始时间:</span><br><span class="line">lastStart=timestamp-(timestamp-offset+slide)%slide=73-(73-6+10)%10=73-7=66</span><br><span class="line">则for(start=66; start&gt;73-60; start=start-10)&#123;</span><br><span class="line">	windows.add(new TimeWindow(start, start + size));</span><br><span class="line">&#125;</span><br><span class="line">windows集合为：</span><br><span class="line">[66, 126]</span><br><span class="line">[56, 116]</span><br><span class="line">[46, 106]</span><br><span class="line">[36, 96]</span><br><span class="line">[26, 86]</span><br><span class="line">[16, 76]</span><br></pre></td></tr></table></figure>
+<p>SlidingEventTimeWindows与SlidingProcessingTimeWindows的assignWindows基本一致，只是额外添加了一层对timestamp的判断，只有当timestamp &gt; Long.MIN_VALUE才会进入到窗口分配，否则抛异常。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">public Collection&lt;TimeWindow&gt; assignWindows(Object element, long timestamp, WindowAssignerContext context) &#123;</span><br><span class="line">	if (timestamp &gt; Long.MIN_VALUE) &#123;</span><br><span class="line">		List&lt;TimeWindow&gt; windows = new ArrayList&lt;&gt;((int) (size / slide));</span><br><span class="line">		long lastStart = TimeWindow.getWindowStartWithOffset(timestamp, offset, slide);</span><br><span class="line">		for (long start = lastStart;</span><br><span class="line">			start &gt; timestamp - size;</span><br><span class="line">			start -= slide) &#123;</span><br><span class="line">			windows.add(new TimeWindow(start, start + size));</span><br><span class="line">		&#125;</span><br><span class="line">		return windows;</span><br><span class="line">	&#125; else &#123;</span><br><span class="line">		throw new RuntimeException(&quot;Record has Long.MIN_VALUE timestamp (= no timestamp marker). &quot; +</span><br><span class="line">				&quot;Is the time characteristic set to &apos;ProcessingTime&apos;, or did you forget to call &quot; +</span><br><span class="line">				&quot;&apos;DataStream.assignTimestampsAndWatermarks(...)&apos;?&quot;);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="MergingWindowAssigner"><a href="#MergingWindowAssigner" class="headerlink" title="MergingWindowAssigner"></a>MergingWindowAssigner</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">public abstract class MergingWindowAssigner&lt;T, W extends Window&gt; extends WindowAssigner&lt;T, W&gt; &#123;</span><br><span class="line">	private static final long serialVersionUID = 1L;</span><br><span class="line"></span><br><span class="line">	public abstract void mergeWindows(Collection&lt;W&gt; windows, MergeCallback&lt;W&gt; callback);</span><br><span class="line"></span><br><span class="line">	public interface MergeCallback&lt;W&gt; &#123;</span><br><span class="line"></span><br><span class="line">		void merge(Collection&lt;W&gt; toBeMerged, W mergeResult);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>MergingWindowAssigner主要提供了MergeCallback抽象接口，然后将该接口传递给TimeWindow的mergeWindows方法来进行窗口的合并(具体可看TimeWindow)。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">public static void mergeWindows(Collection&lt;TimeWindow&gt; windows, MergingWindowAssigner.MergeCallback&lt;TimeWindow&gt; c) &#123;</span><br><span class="line">	......</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="Trigger"><a href="#Trigger" class="headerlink" title="Trigger"></a>Trigger</h2><p>触发器。决定了一个窗口何时能够被计算或清除，每个窗口都会拥有一个自己的Trigger。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">public abstract class Trigger&lt;T, W extends Window&gt; implements Serializable &#123;</span><br><span class="line">	</span><br><span class="line">	private static final long serialVersionUID = -4104633972991191369L;</span><br><span class="line">	</span><br><span class="line">	public abstract TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception;</span><br><span class="line">	</span><br><span class="line">	public abstract TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception;</span><br><span class="line">	</span><br><span class="line">	public abstract TriggerResult onEventTime(long time, W window, TriggerContext ctx) throws Exception;</span><br><span class="line">	</span><br><span class="line">	public boolean canMerge() &#123;</span><br><span class="line">		return false;</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">	public void onMerge(W window, OnMergeContext ctx) throws Exception &#123;</span><br><span class="line">		throw new UnsupportedOperationException(&quot;This trigger does not support merging.&quot;);</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">	public abstract void clear(W window, TriggerContext ctx) throws Exception;</span><br><span class="line">	</span><br><span class="line">	public interface TriggerContext &#123;</span><br><span class="line">		long getCurrentProcessingTime();</span><br><span class="line">		MetricGroup getMetricGroup();</span><br><span class="line">		long getCurrentWatermark();</span><br><span class="line">		void registerProcessingTimeTimer(long time);</span><br><span class="line">		void registerEventTimeTimer(long time);</span><br><span class="line">		void deleteProcessingTimeTimer(long time);</span><br><span class="line">		void deleteEventTimeTimer(long time);</span><br><span class="line">		&lt;S extends State&gt; S getPartitionedState(StateDescriptor&lt;S, ?&gt; stateDescriptor);</span><br><span class="line">		@Deprecated</span><br><span class="line">		&lt;S extends Serializable&gt; ValueState&lt;S&gt; getKeyValueState(String name, Class&lt;S&gt; stateType, S defaultState);</span><br><span class="line">		@Deprecated</span><br><span class="line">		&lt;S extends Serializable&gt; ValueState&lt;S&gt; getKeyValueState(String name, TypeInformation&lt;S&gt; stateType, S defaultState);	</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">	public interface OnMergeContext extends TriggerContext &#123;</span><br><span class="line">		&lt;S extends MergingState&lt;?, ?&gt;&gt; void mergePartitionedState(StateDescriptor&lt;S, ?&gt; stateDescriptor);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>当元素加入窗口时，onElement方法被调用，主要完成定时器的注册，当基于processing time的timer被触发后，onProcessingTime方法被调用，同样的，当基于event time的timer被触发后，onEventTime方法被调用。</p>
+<p>其实现类有以下几种：</p>
+<p><img src="/2019/08/19/Flink的Window源码剖析/7.jpg" alt=""></p>
+<p>常用的主要有CountTrigger、EventTimeTrigger、ProcessingTimeTrigger，下面分别看看这几个触发器。</p>
+<h3 id="CountTrigger"><a href="#CountTrigger" class="headerlink" title="CountTrigger"></a>CountTrigger</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br></pre></td><td class="code"><pre><span class="line">public class CountTrigger&lt;W extends Window&gt; extends Trigger&lt;Object, W&gt; &#123;</span><br><span class="line">	private static final long serialVersionUID = 1L;</span><br><span class="line">	</span><br><span class="line">	// 当窗口中的元素&gt;=maxCount时，窗口操作将被触发</span><br><span class="line">	private final long maxCount;</span><br><span class="line">	</span><br><span class="line">	// 声明count的ReducingStateDescriptor，相当于一个分布式环境下的共享变量，主要记录当前窗口中元素的数量</span><br><span class="line">	private final ReducingStateDescriptor&lt;Long&gt; stateDesc =</span><br><span class="line">			new ReducingStateDescriptor&lt;&gt;(&quot;count&quot;, new Sum(), LongSerializer.INSTANCE);</span><br><span class="line"></span><br><span class="line">	private CountTrigger(long maxCount) &#123;</span><br><span class="line">		this.maxCount = maxCount;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws Exception &#123;</span><br><span class="line">		// 获取窗口中的元素的数量</span><br><span class="line">		ReducingState&lt;Long&gt; count = ctx.getPartitionedState(stateDesc);</span><br><span class="line">		// 执行+1操作</span><br><span class="line">		count.add(1L);</span><br><span class="line">		// 若count值&gt;=maxCount，则窗口执行fire操作，否则continue</span><br><span class="line">		if (count.get() &gt;= maxCount) &#123;</span><br><span class="line">			count.clear();</span><br><span class="line">			return TriggerResult.FIRE;</span><br><span class="line">		&#125;</span><br><span class="line">		return TriggerResult.CONTINUE;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public TriggerResult onEventTime(long time, W window, TriggerContext ctx) &#123;</span><br><span class="line">		return TriggerResult.CONTINUE;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception &#123;</span><br><span class="line">		return TriggerResult.CONTINUE;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public void clear(W window, TriggerContext ctx) throws Exception &#123;</span><br><span class="line">		// 清空共享变量</span><br><span class="line">		ctx.getPartitionedState(stateDesc).clear();</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public boolean canMerge() &#123;</span><br><span class="line">		return true;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public void onMerge(W window, OnMergeContext ctx) throws Exception &#123;</span><br><span class="line">		// 当发生窗口merge时，合并共享变量</span><br><span class="line">		ctx.mergePartitionedState(stateDesc);</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public String toString() &#123;</span><br><span class="line">		return &quot;CountTrigger(&quot; +  maxCount + &quot;)&quot;;</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">	// 提供of(long maxCount)方法返回CountTrigger的实例</span><br><span class="line">	public static &lt;W extends Window&gt; CountTrigger&lt;W&gt; of(long maxCount) &#123;</span><br><span class="line">		return new CountTrigger&lt;&gt;(maxCount);</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	private static class Sum implements ReduceFunction&lt;Long&gt; &#123;</span><br><span class="line">		private static final long serialVersionUID = 1L;</span><br><span class="line"></span><br><span class="line">		@Override</span><br><span class="line">		public Long reduce(Long value1, Long value2) throws Exception &#123;</span><br><span class="line">			return value1 + value2;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="ProcessingTimeTrigger"><a href="#ProcessingTimeTrigger" class="headerlink" title="ProcessingTimeTrigger"></a>ProcessingTimeTrigger</h3><p>当processing time超过窗口的end值时，窗口将执行fire操作：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) &#123;</span><br><span class="line">	// 注册processing time的时钟，相当于定了个闹钟，闹钟时间为window.maxTimestamp()</span><br><span class="line">	ctx.registerProcessingTimeTimer(window.maxTimestamp());</span><br><span class="line">	return TriggerResult.CONTINUE;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">@Override</span><br><span class="line">public TriggerResult onEventTime(long time, TimeWindow window, TriggerContext ctx) throws Exception &#123;</span><br><span class="line">	// 不做处理</span><br><span class="line">	return TriggerResult.CONTINUE;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">@Override</span><br><span class="line">public TriggerResult onProcessingTime(long time, TimeWindow window, TriggerContext ctx) &#123;</span><br><span class="line">	// 当闹钟定的时间到了，执行fire操作</span><br><span class="line">	return TriggerResult.FIRE;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">@Override</span><br><span class="line">public void clear(TimeWindow window, TriggerContext ctx) throws Exception &#123;</span><br><span class="line">	// 清除时钟</span><br><span class="line">	ctx.deleteProcessingTimeTimer(window.maxTimestamp());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到，onElement方法主要用于注册时钟，时钟时间到达后(onProcessingTime)，会触发窗口的fire操作。</p>
+<h3 id="EventTimeTrigger"><a href="#EventTimeTrigger" class="headerlink" title="EventTimeTrigger"></a>EventTimeTrigger</h3><p>EventTimeTrigger与ProcessingTimeTrigger类似：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) throws Exception &#123;</span><br><span class="line">	if (window.maxTimestamp() &lt;= ctx.getCurrentWatermark()) &#123;</span><br><span class="line">		// if the watermark is already past the window fire immediately</span><br><span class="line">		return TriggerResult.FIRE;</span><br><span class="line">	&#125; else &#123;</span><br><span class="line">		ctx.registerEventTimeTimer(window.maxTimestamp());</span><br><span class="line">		return TriggerResult.CONTINUE;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">@Override</span><br><span class="line">public TriggerResult onEventTime(long time, TimeWindow window, TriggerContext ctx) &#123;</span><br><span class="line">	return time == window.maxTimestamp() ?</span><br><span class="line">		TriggerResult.FIRE :</span><br><span class="line">		TriggerResult.CONTINUE;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">@Override</span><br><span class="line">public TriggerResult onProcessingTime(long time, TimeWindow window, TriggerContext ctx) throws Exception &#123;</span><br><span class="line">	return TriggerResult.CONTINUE;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">@Override</span><br><span class="line">public void clear(TimeWindow window, TriggerContext ctx) throws Exception &#123;</span><br><span class="line">	ctx.deleteEventTimeTimer(window.maxTimestamp());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>onElement方法会检查当前窗口的最大时间戳是否大于水印，若大于水印，则直接触发窗口的fire操作，若小于水印，则注册EventTime的时钟，当<strong>水印时间到达时钟设定值</strong>时，会触发窗口的fire操作。</p>
+<p>最后，我们看一个很有用的Trigger工具类—PurgingTrigger。</p>
+<h3 id="PurgingTrigger"><a href="#PurgingTrigger" class="headerlink" title="PurgingTrigger"></a>PurgingTrigger</h3><p>首先看PurgingTrigger的构造器：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">private PurgingTrigger(Trigger&lt;T, W&gt; nestedTrigger) &#123;</span><br><span class="line">	this.nestedTrigger = nestedTrigger;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>PurgingTrigger会将传入的nestedTrigger进行”二次处理”，当nestedTrigger执行fire操作时，PurgingTrigger会将其转换为fire+purge操作。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">public TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception &#123;</span><br><span class="line">	TriggerResult triggerResult = nestedTrigger.onElement(element, timestamp, window, ctx);</span><br><span class="line">	return triggerResult.isFire() ? TriggerResult.FIRE_AND_PURGE : triggerResult;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">@Override</span><br><span class="line">public TriggerResult onEventTime(long time, W window, TriggerContext ctx) throws Exception &#123;</span><br><span class="line">	TriggerResult triggerResult = nestedTrigger.onEventTime(time, window, ctx);</span><br><span class="line">	return triggerResult.isFire() ? TriggerResult.FIRE_AND_PURGE : triggerResult;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">@Override</span><br><span class="line">public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception &#123;</span><br><span class="line">	TriggerResult triggerResult = nestedTrigger.onProcessingTime(time, window, ctx);</span><br><span class="line">	return triggerResult.isFire() ? TriggerResult.FIRE_AND_PURGE : triggerResult;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>典型的修饰器模式。</strong></p>
+<p>KeyedStream的countWindow(long size)直接应用了PurgingTrigger工具类。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">public WindowedStream&lt;T, KEY, GlobalWindow&gt; countWindow(long size) &#123;</span><br><span class="line">	return window(GlobalWindows.create()).trigger(PurgingTrigger.of(CountTrigger.of(size)));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="Evictor"><a href="#Evictor" class="headerlink" title="Evictor"></a>Evictor</h2><p>可以译为“驱逐者”。在Trigger触发之后，在窗口被处理前/后，Evictor（如果有Evictor的话）会用来剔除窗口中不需要的元素，相当于一个filter。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">public interface Evictor&lt;T, W extends Window&gt; extends Serializable &#123;</span><br><span class="line"></span><br><span class="line">	void evictBefore(Iterable&lt;TimestampedValue&lt;T&gt;&gt; elements, int size, W window, EvictorContext evictorContext);</span><br><span class="line"></span><br><span class="line">	void evictAfter(Iterable&lt;TimestampedValue&lt;T&gt;&gt; elements, int size, W window, EvictorContext evictorContext);</span><br><span class="line"></span><br><span class="line">	interface EvictorContext &#123;</span><br><span class="line">		</span><br><span class="line">		long getCurrentProcessingTime();</span><br><span class="line"></span><br><span class="line">		MetricGroup getMetricGroup();</span><br><span class="line"></span><br><span class="line">		long getCurrentWatermark();</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>其主要有如下实现类：</p>
+<p><img src="/2019/08/19/Flink的Window源码剖析/8.jpg" alt=""></p>
+<h3 id="CountEvictor"><a href="#CountEvictor" class="headerlink" title="CountEvictor"></a>CountEvictor</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br></pre></td><td class="code"><pre><span class="line">public class CountEvictor&lt;W extends Window&gt; implements Evictor&lt;Object, W&gt; &#123;</span><br><span class="line">	private static final long serialVersionUID = 1L;</span><br><span class="line">	</span><br><span class="line">	// 窗口的最大元素数量</span><br><span class="line">	private final long maxCount;</span><br><span class="line">	// 是否在计算后驱逐元素</span><br><span class="line">	private final boolean doEvictAfter;</span><br><span class="line"></span><br><span class="line">	private CountEvictor(long count, boolean doEvictAfter) &#123;</span><br><span class="line">		this.maxCount = count;</span><br><span class="line">		this.doEvictAfter = doEvictAfter;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	private CountEvictor(long count) &#123;</span><br><span class="line">		this.maxCount = count;</span><br><span class="line">		// 默认在计算前执行Evictor操作</span><br><span class="line">		this.doEvictAfter = false;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public void evictBefore(Iterable&lt;TimestampedValue&lt;Object&gt;&gt; elements, int size, W window, EvictorContext ctx) &#123;</span><br><span class="line">		// 若doEvictAfter为false</span><br><span class="line">		if (!doEvictAfter) &#123;</span><br><span class="line">			evict(elements, size, ctx);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	@Override</span><br><span class="line">	public void evictAfter(Iterable&lt;TimestampedValue&lt;Object&gt;&gt; elements, int size, W window, EvictorContext ctx) &#123;</span><br><span class="line">		// 若doEvictAfter为true</span><br><span class="line">		if (doEvictAfter) &#123;</span><br><span class="line">			evict(elements, size, ctx);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	private void evict(Iterable&lt;TimestampedValue&lt;Object&gt;&gt; elements, int size, EvictorContext ctx) &#123;</span><br><span class="line">		if (size &lt;= maxCount) &#123;</span><br><span class="line">			return;</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			int evictedCount = 0;</span><br><span class="line">			// Iterator&lt;TimestampedValue&lt;Object&gt;&gt; iterator是按照元素到达时间排序的有序迭代器，第1个元素为时间最old的</span><br><span class="line">			for (Iterator&lt;TimestampedValue&lt;Object&gt;&gt; iterator = elements.iterator(); iterator.hasNext();)&#123;</span><br><span class="line">				iterator.next();</span><br><span class="line">				evictedCount++;</span><br><span class="line">				if (evictedCount &gt; size - maxCount) &#123;</span><br><span class="line">					break;</span><br><span class="line">				&#125; else &#123;</span><br><span class="line">					// 将多余的元素剔除</span><br><span class="line">					iterator.remove();</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * Creates a &#123;@code CountEvictor&#125; that keeps the given number of elements.</span><br><span class="line">	 * Eviction is done before the window function.</span><br><span class="line">	 *</span><br><span class="line">	 * @param maxCount The number of elements to keep in the pane.</span><br><span class="line">	 */</span><br><span class="line">	public static &lt;W extends Window&gt; CountEvictor&lt;W&gt; of(long maxCount) &#123;</span><br><span class="line">		return new CountEvictor&lt;&gt;(maxCount);</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	public static &lt;W extends Window&gt; CountEvictor&lt;W&gt; of(long maxCount, boolean doEvictAfter) &#123;</span><br><span class="line">		return new CountEvictor&lt;&gt;(maxCount, doEvictAfter);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>KeyedStream的countWindow(long size, long slide)方法应用CountEvictor实现了滑动窗口。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">public WindowedStream&lt;T, KEY, GlobalWindow&gt; countWindow(long size, long slide) &#123;</span><br><span class="line">	return window(GlobalWindows.create())</span><br><span class="line">			.evictor(CountEvictor.of(size))</span><br><span class="line">			.trigger(CountTrigger.of(slide));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="TimeEvictor"><a href="#TimeEvictor" class="headerlink" title="TimeEvictor"></a>TimeEvictor</h3><p>TimeEvictor与CountEvictor类似，TimeEvictor基于时间驱动，故其windowSize参数对应CountEvictor的maxCount，均表征窗口的大小，重点看一下evict方法：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">private void evict(Iterable&lt;TimestampedValue&lt;Object&gt;&gt; elements, int size, EvictorContext ctx) &#123;</span><br><span class="line">	if (!hasTimestamp(elements)) &#123;</span><br><span class="line">		return;</span><br><span class="line">	&#125;</span><br><span class="line">	// 获取所有元素时间戳的最大值</span><br><span class="line">	long currentTime = getMaxTimestamp(elements);</span><br><span class="line">	// 获取evict分割线</span><br><span class="line">	long evictCutoff = currentTime - windowSize;</span><br><span class="line"></span><br><span class="line">	for (Iterator&lt;TimestampedValue&lt;Object&gt;&gt; iterator = elements.iterator(); iterator.hasNext(); ) &#123;</span><br><span class="line">		TimestampedValue&lt;Object&gt; record = iterator.next();</span><br><span class="line">		// 若元素的时间戳不大于evict分割线，执行删除操作</span><br><span class="line">		if (record.getTimestamp() &lt;= evictCutoff) &#123;</span><br><span class="line">			iterator.remove();</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="DeltaEvictor"><a href="#DeltaEvictor" class="headerlink" title="DeltaEvictor"></a>DeltaEvictor</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">public class DeltaEvictor&lt;T, W extends Window&gt; implements Evictor&lt;T, W&gt; &#123;</span><br><span class="line">	private static final long serialVersionUID = 1L;</span><br><span class="line">	// 求两元素间距离的函数</span><br><span class="line">	DeltaFunction&lt;T&gt; deltaFunction;</span><br><span class="line">	// 阈值</span><br><span class="line">	private double threshold;</span><br><span class="line">	private final boolean doEvictAfter;</span><br><span class="line">	</span><br><span class="line">	......</span><br><span class="line">	</span><br><span class="line">	private void evict(Iterable&lt;TimestampedValue&lt;T&gt;&gt; elements, int size, EvictorContext ctx) &#123;</span><br><span class="line">		// 获取最新的元素</span><br><span class="line">		TimestampedValue&lt;T&gt; lastElement = Iterables.getLast(elements);</span><br><span class="line">		for (Iterator&lt;TimestampedValue&lt;T&gt;&gt; iterator = elements.iterator(); iterator.hasNext();)&#123;</span><br><span class="line">			TimestampedValue&lt;T&gt; element = iterator.next();</span><br><span class="line">			// 若当前元素与最新元素之间的距离超过阈值，则删除该元素</span><br><span class="line">			if (deltaFunction.getDelta(element.getValue(), lastElement.getValue()) &gt;= this.threshold) &#123;</span><br><span class="line">				iterator.remove();</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">		</span><br><span class="line">	......</span><br><span class="line">	</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>由上述代码易知，基于DeltaEvictor可以实现CountEvictor和TimeEvictor，只要实现各自的DeltaFunction即可，所以DeltaEvictor更具有一般性。</p>
+<h2 id="开源推荐"><a href="#开源推荐" class="headerlink" title="开源推荐"></a>开源推荐</h2><p>在学习Flink的过程中，本人将涉及到的测试案例、源码解读、开发技巧等系统整理了一下，并开源到Github上，地址为：</p>
+<p><a href="https://github.com/Ruanshubin/awesome-flink" target="_blank" rel="noopener">https://github.com/Ruanshubin/awesome-flink</a></p>
+<p><strong>欢迎大家Star支持！</strong></p>
+
+      
+    </div>
+    
+    
+    
+	
+	<div>
+	
+		<div>
+    
+        <div style="text-align:center;color: #ccc;font-size:14px;">-------------本文结束<i class="fa fa-paw"></i>感谢您的阅读-------------</div>
+    
+</div>
+	
+	</div>
+
+    
+      <div>
+        <div id="wechat_subscriber" style="display: block; padding: 10px 0; margin: 20px auto; width: 100%; text-align: center">
+    <img id="wechat_subscriber_qcode" src="/uploads/wechat-qcode.jpg" alt="Ruan Shubin wechat" style="width: 200px; max-width: 100%;">
+    <div>欢迎您扫一扫上面的二维码，关注我的微信公众号！</div>
+</div>
+
+      </div>
+    
+
+    
+
+    
+      <div>
+        <ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者：</strong>
+    Ruan Shubin
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="http://ruanshubin.top/2019/08/19/Flink的Window源码剖析/" title="Flink的Window源码剖析">http://ruanshubin.top/2019/08/19/Flink的Window源码剖析/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>
+    本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/" rel="external nofollow" target="_blank">CC BY-NC-SA 3.0</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+
+      </div>
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/大数据/" rel="tag"><i class="fa fa-tag"></i> 大数据</a>
+          
+            <a href="/tags/Flink/" rel="tag"><i class="fa fa-tag"></i> Flink</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/08/15/Flink的Window初探/" rel="next" title="Flink的Window初探">
+                <i class="fa fa-chevron-left"></i> Flink的Window初探
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/09/16/Flink的分布式缓存/" rel="prev" title="Flink的分布式缓存">
+                Flink的分布式缓存 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+        <!-- JiaThis Button BEGIN -->
+<div class="jiathis_style">
+<span class="jiathis_txt">分享到：</span>
+<a class="jiathis_button_weixin">微信</a>
+<a class="jiathis_button_qzone">QQ空间</a>
+<a class="jiathis_button_tsina">新浪微博</a>
+<a class="jiathis_button_zhihu">知乎</a>
+<a class="jiathis_button_share">一键分享</a>
+
+<a href="http://www.jiathis.com/share?uid=2140465" class="jiathis jiathis_txt jiathis_separator jtico jtico_jiathis" target="_blank">更多</a>
+<a class="jiathis_counter_style"></a>
+</div>
+<script type="text/javascript">
+var jiathis_config={
+  data_track_clickback:true,
+  summary:"",
+  shortUrl:false,
+  hideMore:false
+}
+</script>
+<script type="text/javascript" src="http://v3.jiathis.com/code/jia.js?uid=" charset="utf-8"></script>
+<!-- JiaThis Button END -->
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div class="comments" id="comments">
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8zMzc1NC8xMDMwOA"></div>
+    </div>
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/avatar.gif" alt="Ruan Shubin">
+            
+              <p class="site-author-name" itemprop="name">Ruan Shubin</p>
+              <p class="site-description motion-element" itemprop="description">一万年太久，只争朝夕！</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives">
+              
+                  <span class="site-state-item-count">23</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">8</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">20</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+            <div class="feed-link motion-element">
+              <a href="/atom.xml" rel="alternate">
+                <i class="fa fa-rss"></i>
+                RSS
+              </a>
+            </div>
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/Ruanshubin" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://weibo.com/u/2487162561" target="_blank" title="Weibo">
+                      
+                        <i class="fa fa-fw fa-weibo"></i>Weibo</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://blog.csdn.net/wenwu_both" target="_blank" title="CSDN">
+                      
+                        <i class="fa fa-fw fa-book"></i>CSDN</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="http://tcrl.zju.edu.cn/" target="_blank" title="Lab">
+                      
+                        <i class="fa fa-fw fa-users"></i>Lab</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Window"><span class="nav-number">1.</span> <span class="nav-text">Window</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#TimeWindow"><span class="nav-number">1.1.</span> <span class="nav-text">TimeWindow</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#GlobalWindow"><span class="nav-number">1.2.</span> <span class="nav-text">GlobalWindow</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#WindowAssigner"><span class="nav-number">2.</span> <span class="nav-text">WindowAssigner</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#GlobalWindows"><span class="nav-number">2.1.</span> <span class="nav-text">GlobalWindows</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#TumblingProcessingTimeWindows和TumblingEventTimeWindows"><span class="nav-number">2.2.</span> <span class="nav-text">TumblingProcessingTimeWindows和TumblingEventTimeWindows</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SlidingProcessingTimeWindows和SlidingEventTimeWindows"><span class="nav-number">2.3.</span> <span class="nav-text">SlidingProcessingTimeWindows和SlidingEventTimeWindows</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#MergingWindowAssigner"><span class="nav-number">2.4.</span> <span class="nav-text">MergingWindowAssigner</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Trigger"><span class="nav-number">3.</span> <span class="nav-text">Trigger</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#CountTrigger"><span class="nav-number">3.1.</span> <span class="nav-text">CountTrigger</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ProcessingTimeTrigger"><span class="nav-number">3.2.</span> <span class="nav-text">ProcessingTimeTrigger</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#EventTimeTrigger"><span class="nav-number">3.3.</span> <span class="nav-text">EventTimeTrigger</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#PurgingTrigger"><span class="nav-number">3.4.</span> <span class="nav-text">PurgingTrigger</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Evictor"><span class="nav-number">4.</span> <span class="nav-text">Evictor</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#CountEvictor"><span class="nav-number">4.1.</span> <span class="nav-text">CountEvictor</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#TimeEvictor"><span class="nav-number">4.2.</span> <span class="nav-text">TimeEvictor</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#DeltaEvictor"><span class="nav-number">4.3.</span> <span class="nav-text">DeltaEvictor</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#开源推荐"><span class="nav-number">5.</span> <span class="nav-text">开源推荐</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Ruan Shubin</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+      <span class="post-meta-item-text">全站总字数&#58;</span>
+    
+    <span title="全站总字数">57.8k</span>
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Pisces</a> v5.1.4</div>
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+
+  
+</div>
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  <script type="text/javascript">
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url);
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x" /></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x" /></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+  
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdn.bootcss.com/mathjax/2.7.1/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+
+  
+
+  
+
+</body>
+</html>

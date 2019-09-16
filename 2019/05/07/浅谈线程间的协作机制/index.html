@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=5.1.4">
+
+
+
+
+
+
+
+  <meta name="keywords" content="Java,并发,">
+
+
+
+
+
+  <link rel="alternate" href="/atom.xml" title="阮树斌 | 技术改变生活" type="application/atom+xml">
+
+
+
+
+
+
+<meta name="description" content="注意：如无特殊说明，本文源码分析基于的Java JDK版本均为1.8。 等待/通知机制假设这样的情景，只要线程A修改了某值value，则线程B则对新的value值进行某些操作，比较容易想到的方法是，线程B不断循环访问value，一旦感知到变化，则执行相应逻辑。 123456789// 线程Aset value = newValue// 线程Bfor(;;)&amp;#123;	while(newValue">
+<meta name="keywords" content="Java,并发">
+<meta property="og:type" content="article">
+<meta property="og:title" content="浅谈线程间的协作机制">
+<meta property="og:url" content="http://ruanshubin.top/2019/05/07/浅谈线程间的协作机制/index.html">
+<meta property="og:site_name" content="阮树斌 | 技术改变生活">
+<meta property="og:description" content="注意：如无特殊说明，本文源码分析基于的Java JDK版本均为1.8。 等待/通知机制假设这样的情景，只要线程A修改了某值value，则线程B则对新的value值进行某些操作，比较容易想到的方法是，线程B不断循环访问value，一旦感知到变化，则执行相应逻辑。 123456789// 线程Aset value = newValue// 线程Bfor(;;)&amp;#123;	while(newValue">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="https://upload-images.jianshu.io/upload_images/10431632-ac67fb575dd3eab8.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240">
+<meta property="og:image" content="https://upload-images.jianshu.io/upload_images/10431632-505d7e5f0bcf1884.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240">
+<meta property="og:image" content="https://upload-images.jianshu.io/upload_images/10431632-86426e609c966a5e.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240">
+<meta property="og:updated_time" content="2019-09-16T01:37:16.335Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="浅谈线程间的协作机制">
+<meta name="twitter:description" content="注意：如无特殊说明，本文源码分析基于的Java JDK版本均为1.8。 等待/通知机制假设这样的情景，只要线程A修改了某值value，则线程B则对新的value值进行某些操作，比较容易想到的方法是，线程B不断循环访问value，一旦感知到变化，则执行相应逻辑。 123456789// 线程Aset value = newValue// 线程Bfor(;;)&amp;#123;	while(newValue">
+<meta name="twitter:image" content="https://upload-images.jianshu.io/upload_images/10431632-ac67fb575dd3eab8.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://ruanshubin.top/2019/05/07/浅谈线程间的协作机制/">
+
+
+
+
+
+  <title>浅谈线程间的协作机制 | 阮树斌 | 技术改变生活</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+
+   <canvas class="fireworks" style="position: fixed;left: 0;top: 0;z-index: 1; pointer-events: none;"></canvas> 
+   <script type="text/javascript" src="//cdn.bootcss.com/animejs/2.2.0/anime.min.js"></script> 
+   <script type="text/javascript" src="/js/src/fireworks.js"></script>
+
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+	<a href="https://github.com/Ruanshubin" class="github-corner" aria-label="View source on Github">
+	<svg width="80" height="80" viewbox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true">
+	<path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"/>
+	<path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"/>
+	<path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"/>
+	</svg>
+	</a>
+	<style>
+	.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}
+	</style>
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">阮树斌 | 技术改变生活</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">交通 | 数据 | 算法 <br> Java | Python | Scala | Matlab | GIS</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-首页">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-分类">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br>
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-归档">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-标签">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-关于">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br>
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+	
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://ruanshubin.top/2019/05/07/浅谈线程间的协作机制/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Ruan Shubin">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="阮树斌 | 技术改变生活">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">浅谈线程间的协作机制</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-05-07T17:08:00+08:00">
+                2019-05-07
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/并发编程/" itemprop="url" rel="index">
+                    <span itemprop="name">并发编程</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-wordcount">
+              
+                
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">字数统计&#58;</span>
+                
+                <span title="字数统计">
+                  3.6k 字
+                </span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">
+                  17 分钟
+                </span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p><strong>注意：如无特殊说明，本文源码分析基于的Java JDK版本均为1.8。</strong></p>
+<h2 id="等待-通知机制"><a href="#等待-通知机制" class="headerlink" title="等待/通知机制"></a>等待/通知机制</h2><p>假设这样的情景，只要线程A修改了某值value，则线程B则对新的value值进行某些操作，比较容易想到的方法是，线程B不断循环访问value，一旦感知到变化，则执行相应逻辑。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">// 线程A</span><br><span class="line">set value = newValue</span><br><span class="line"></span><br><span class="line">// 线程B</span><br><span class="line">for(;;)&#123;</span><br><span class="line">	while(newValue != oldValue)&#123;</span><br><span class="line">		doSomething(newValue);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>如果value值发生变化的频率较低，则线程B不断自旋获取value的值，过多的无效尝试极大地浪费系统处理资源。</p>
+<p>改进的方法是，每一段时间(如1s)去访问一下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">// 线程A</span><br><span class="line">set value = newValue</span><br><span class="line"></span><br><span class="line">// 线程B</span><br><span class="line">for(;;)&#123;</span><br><span class="line">	while(newValue != oldValue)&#123;</span><br><span class="line">		doSomething(newValue);</span><br><span class="line">	&#125;</span><br><span class="line">	try &#123;</span><br><span class="line">        Thread.sleep(1000);</span><br><span class="line">    &#125; catch (Exception e) &#123;</span><br><span class="line">        e.printStackTrace();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>改进后，较少了较多的无效尝试，降低了对处理器资源的浪费，但是休眠时间的大小难以确定：</p>
+<ol>
+<li>休眠时间太大，不能在休眠期间及时感知数据的变化，实时性较差；</li>
+<li>休眠时间过小，实时性提高的同时，增加了无效尝试的次数，造成了系统处理资源的浪费。</li>
+</ol>
+<p>考虑到上述监听机制上述的困境，线程间协作采用的是等待/通知机制。</p>
+<p>原理就是，当线程A完成对数据的修改之后，会通过一定的机制通知线程B来获取新的数据值来进行相关业务处理，线程B处理完之后挂起等待后续线程A的通知。</p>
+<p>等待/通知机制是所有Java对象均具备的，因为相关方法是定义在所有对象的超类java.lang.Object上的。</p>
+<p>相关方法描述如下：</p>
+<div class="table-container">
+<table>
+<thead>
+<tr>
+<th>方法名称</th>
+<th style="text-align:center">描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>notify()</td>
+<td style="text-align:center">通知一个在对象上等待的线程，使其从wait()返回，而返回的前提是该线程获取到对象的锁</td>
+</tr>
+<tr>
+<td>notifyAll()</td>
+<td style="text-align:center">通知所有等待在该对象上的线程</td>
+</tr>
+<tr>
+<td>wait()</td>
+<td style="text-align:center">调用wait()方法后，会释放对象的锁，并进入WAITING状态</td>
+</tr>
+<tr>
+<td>wait(long)</td>
+<td style="text-align:center">超时等待一段时间，如果没有通知就超时返回</td>
+</tr>
+<tr>
+<td>wait(long, int)</td>
+<td style="text-align:center">超时时间更细粒度的控制，可以达到毫秒</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="wait-notify"><a href="#wait-notify" class="headerlink" title="wait()/notify()"></a>wait()/notify()</h2><h3 id="入门实例"><a href="#入门实例" class="headerlink" title="入门实例"></a>入门实例</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line">public class WaitAndNotifyDemo &#123;</span><br><span class="line"></span><br><span class="line">    public static void main(String[] args) &#123;</span><br><span class="line"></span><br><span class="line">        Object lock = new Object();</span><br><span class="line"></span><br><span class="line">        // 线程A</span><br><span class="line">        new Thread(new Runnable() &#123;</span><br><span class="line">            @Override</span><br><span class="line">            public void run() &#123;</span><br><span class="line">                System.out.println(&quot;线程A等待获取锁&quot;);</span><br><span class="line">                synchronized (lock) &#123;</span><br><span class="line">                    try &#123;</span><br><span class="line">                        System.out.println(&quot;线程A获取锁&quot;);</span><br><span class="line">                        Thread.sleep(3000);</span><br><span class="line">                        System.out.println(&quot;线程A将要运行wait()进入等待&quot;);</span><br><span class="line">                        lock.wait();</span><br><span class="line">                        System.out.println(&quot;线程A等待结束&quot;);</span><br><span class="line">                    &#125; catch (InterruptedException e) &#123;</span><br><span class="line">                        e.printStackTrace();</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;).start();</span><br><span class="line"></span><br><span class="line">        // 线程B</span><br><span class="line">        new Thread(new Runnable() &#123;</span><br><span class="line">            @Override</span><br><span class="line">            public void run() &#123;</span><br><span class="line">                System.out.println(&quot;线程B等待获取锁&quot;);</span><br><span class="line">                synchronized (lock) &#123;</span><br><span class="line">                    try &#123;</span><br><span class="line">                        System.out.println(&quot;线程B获取锁&quot;);</span><br><span class="line">                        Thread.sleep(3000);</span><br><span class="line">                        System.out.println(&quot;线程B将要运行notify()唤醒其他wait状态的线程&quot;);</span><br><span class="line">                        lock.notify();</span><br><span class="line">                    &#125; catch (InterruptedException e) &#123;</span><br><span class="line">                        e.printStackTrace();</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;).start();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>运行结果为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">线程A等待获取锁</span><br><span class="line">线程A获取锁</span><br><span class="line">线程B等待获取锁</span><br><span class="line">线程A将要运行wait()进入等待</span><br><span class="line">线程B获取锁</span><br><span class="line">线程B将要运行notify()唤醒其他wait状态的线程</span><br><span class="line">线程A等待结束</span><br><span class="line"></span><br><span class="line">Process finished with exit code 0</span><br></pre></td></tr></table></figure>
+<p>需要注意的是：Thread的sleep()方法仅是让出CPU时间片，让其他线程有机会执行，但是sleep()方法不会释放其持有的对象锁，仅当调用对象的wait()方法才会释放对象锁。</p>
+<h3 id="wait-方法"><a href="#wait-方法" class="headerlink" title="wait()方法"></a>wait()方法</h3><p>进入到Object的wait()方法：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">public final void wait() throws InterruptedException &#123;</span><br><span class="line">	wait(0);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看出，其底层调用的是Object的重载方法wait(long):</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">public final native void wait(long timeout) throws InterruptedException;</span><br></pre></td></tr></table></figure>
+<p>重载方法wait(long)是native方法，方法实现可通过OpenJDK来查看(Object.c)来找到：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">static JNINativeMethod methods[] = &#123;</span><br><span class="line">    &#123;&quot;hashCode&quot;,    &quot;()I&quot;,                    (void *)&amp;JVM_IHashCode&#125;,</span><br><span class="line">    &#123;&quot;wait&quot;,        &quot;(J)V&quot;,                   (void *)&amp;JVM_MonitorWait&#125;,</span><br><span class="line">    &#123;&quot;notify&quot;,      &quot;()V&quot;,                    (void *)&amp;JVM_MonitorNotify&#125;,</span><br><span class="line">    &#123;&quot;notifyAll&quot;,   &quot;()V&quot;,                    (void *)&amp;JVM_MonitorNotifyAll&#125;,</span><br><span class="line">    &#123;&quot;clone&quot;,       &quot;()Ljava/lang/Object;&quot;,   (void *)&amp;JVM_Clone&#125;,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>其中，JVM_MonitorWait和JVM_MonitorNotify分别对应于wait()和notify()方法，JVM_MonitorWait方法声明是在jvm.h中，如下所示：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">JNIEXPORT void JNICALL</span><br><span class="line">JVM_MonitorWait(JNIEnv *env, jobject obj, jlong ms);</span><br></pre></td></tr></table></figure>
+<p>方法实现为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">JVM_ENTRY(void, JVM_MonitorWait(JNIEnv* env, jobject handle, jlong ms))</span><br><span class="line">  JVMWrapper(&quot;JVM_MonitorWait&quot;);</span><br><span class="line">  Handle obj(THREAD, JNIHandles::resolve_non_null(handle));</span><br><span class="line">  assert(obj-&gt;is_instance() || obj-&gt;is_array(), &quot;JVM_MonitorWait must apply to an object&quot;);</span><br><span class="line">  JavaThreadInObjectWaitState jtiows(thread, ms != 0);</span><br><span class="line">  if (JvmtiExport::should_post_monitor_wait()) &#123;</span><br><span class="line">    JvmtiExport::post_monitor_wait((JavaThread *)THREAD, (oop)obj(), ms);</span><br><span class="line">  &#125;</span><br><span class="line">  ObjectSynchronizer::wait(obj, ms, CHECK);</span><br><span class="line">JVM_END</span><br></pre></td></tr></table></figure>
+<p>JVM_MonitorWait方法最终调用了ObjectSynchronizer的wait方法:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">void ObjectSynchronizer::wait(Handle obj, jlong millis, TRAPS) &#123;</span><br><span class="line">  if (UseBiasedLocking) &#123;</span><br><span class="line">    BiasedLocking::revoke_and_rebias(obj, false, THREAD);</span><br><span class="line">    assert(!obj-&gt;mark()-&gt;has_bias_pattern(), &quot;biases should be revoked by now&quot;);</span><br><span class="line">  &#125;</span><br><span class="line">  if (millis &lt; 0) &#123;</span><br><span class="line">    TEVENT (wait - throw IAX) ;</span><br><span class="line">    THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), &quot;timeout value is negative&quot;);</span><br><span class="line">  &#125;</span><br><span class="line">  ObjectMonitor* monitor = ObjectSynchronizer::inflate(THREAD, obj());</span><br><span class="line">  DTRACE_MONITOR_WAIT_PROBE(monitor, obj(), THREAD, millis);</span><br><span class="line">  monitor-&gt;wait(millis, true, THREAD);</span><br><span class="line"> </span><br><span class="line">  /* This dummy call is in place to get around dtrace bug 6254741.  Once</span><br><span class="line">     that&apos;s fixed we can uncomment the following line and remove the call */</span><br><span class="line">  // DTRACE_MONITOR_PROBE(waited, monitor, obj(), THREAD);</span><br><span class="line">  dtrace_waited_probe(monitor, obj, THREAD);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>最终，是通过调用ObjectMonitor的wait()方法来实现等待的，其主要代码如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) &#123;</span><br><span class="line">   ...</span><br><span class="line">   // create a node to be put into the queue</span><br><span class="line">   // Critically, after we reset() the event but prior to park(), we must check</span><br><span class="line">   // for a pending interrupt.</span><br><span class="line">   ObjectWaiter node(Self);</span><br><span class="line">   node.TState = ObjectWaiter::TS_WAIT ;</span><br><span class="line">   Self-&gt;_ParkEvent-&gt;reset() ;</span><br><span class="line">   OrderAccess::fence();          // ST into Event; membar ; LD interrupted-flag</span><br><span class="line"> </span><br><span class="line">   // Enter the waiting queue, which is a circular doubly linked list in this case</span><br><span class="line">   // but it could be a priority queue or any data structure.</span><br><span class="line">   // _WaitSetLock protects the wait queue.  Normally the wait queue is accessed only</span><br><span class="line">   // by the the owner of the monitor *except* in the case where park()</span><br><span class="line">   // returns because of a timeout of interrupt.  Contention is exceptionally rare</span><br><span class="line">   // so we use a simple spin-lock instead of a heavier-weight blocking lock.</span><br><span class="line"> </span><br><span class="line">   Thread::SpinAcquire (&amp;_WaitSetLock, &quot;WaitSet - add&quot;) ;</span><br><span class="line">   AddWaiter (&amp;node) ;</span><br><span class="line">   Thread::SpinRelease (&amp;_WaitSetLock) ;</span><br><span class="line"> </span><br><span class="line">   if ((SyncFlags &amp; 4) == 0) &#123;</span><br><span class="line">      _Responsible = NULL ;</span><br><span class="line">   &#125;</span><br><span class="line">   intptr_t save = _recursions; // record the old recursion count</span><br><span class="line">   _waiters++;                  // increment the number of waiters</span><br><span class="line">   _recursions = 0;             // set the recursion level to be 1</span><br><span class="line">   exit (Self) ;                    // exit the monitor</span><br><span class="line">   guarantee (_owner != Self, &quot;invariant&quot;) ;</span><br><span class="line">   ...</span><br><span class="line"> </span><br><span class="line">   if (node._notified != 0 &amp;&amp; _succ == Self) &#123;</span><br><span class="line">      node._event-&gt;unpark();</span><br><span class="line">   &#125;</span><br><span class="line"> </span><br><span class="line">   // The thread is on the WaitSet list - now park() it.</span><br><span class="line">   ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>整个调用链路可以总结如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Object.wait()--&gt;Object.wait(long)--&gt;JVM_MonitorWait--&gt;ObjectSynchronizer::wait--&gt;ObjectMonitor::wait</span><br></pre></td></tr></table></figure>
+<p>说明对象的Object最终调用的是底层native方法ObjectMonitor::wait，下面介绍一下ObjectMonitor::wait的基本步骤：</p>
+<ul>
+<li>将调用wait()方法的线程封装为ObjectWaiter类的对象node；</li>
+</ul>
+<p>ObjectWriter类声明为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">class ObjectWaiter : public StackObj &#123;</span><br><span class="line"> public:</span><br><span class="line">  enum TStates &#123; TS_UNDEF, TS_READY, TS_RUN, TS_WAIT, TS_ENTER, TS_CXQ &#125; ;</span><br><span class="line">  enum Sorted  &#123; PREPEND, APPEND, SORTED &#125; ;</span><br><span class="line">  ObjectWaiter * volatile _next;</span><br><span class="line">  ObjectWaiter * volatile _prev;</span><br><span class="line">  Thread*       _thread;</span><br><span class="line">  ParkEvent *   _event;</span><br><span class="line">  volatile int  _notified ;</span><br><span class="line">  volatile TStates TState ;</span><br><span class="line">  Sorted        _Sorted ;           // List placement disposition</span><br><span class="line">  bool          _active ;           // Contention monitoring is enabled</span><br><span class="line"> public:</span><br><span class="line">  ObjectWaiter(Thread* thread);</span><br><span class="line"> </span><br><span class="line">  void wait_reenter_begin(ObjectMonitor *mon);</span><br><span class="line">  void wait_reenter_end(ObjectMonitor *mon);</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>可以看出，ObjectWaiter是双向链表结构，保存了当前线程_thread及当前的状态TState等数据，每个等待锁的线程都会被封装成ObjectWaiter对象。</p>
+<ul>
+<li>通过ObjectMonitor::AddWaiter方法将node添加到_WaitSet列表中;</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">inline void ObjectMonitor::AddWaiter(ObjectWaiter* node) &#123;</span><br><span class="line">  assert(node != NULL, &quot;should not dequeue NULL node&quot;);</span><br><span class="line">  assert(node-&gt;_prev == NULL, &quot;node already in list&quot;);</span><br><span class="line">  assert(node-&gt;_next == NULL, &quot;node already in list&quot;);</span><br><span class="line">  // put node at end of queue (circular doubly linked list)</span><br><span class="line">  if (_WaitSet == NULL) &#123;</span><br><span class="line">    _WaitSet = node;</span><br><span class="line">    node-&gt;_prev = node;</span><br><span class="line">    node-&gt;_next = node;</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    ObjectWaiter* head = _WaitSet ;</span><br><span class="line">    ObjectWaiter* tail = head-&gt;_prev;</span><br><span class="line">    assert(tail-&gt;_next == head, &quot;invariant check&quot;);</span><br><span class="line">    tail-&gt;_next = node;</span><br><span class="line">    head-&gt;_prev = node;</span><br><span class="line">    node-&gt;_next = head;</span><br><span class="line">    node-&gt;_prev = tail;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>调用此方法前后需要获取和释放_WaitSet列表的_WaitSetLock锁。从注释中可以看到，_WaitSet列表其实是一个双向循环链表。</p>
+<ul>
+<li>通过ObjectMonitor::exit方法释放当前的ObjectMonitor对象，这样其它竞争线程就可以获取该ObjectMonitor对象;</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">void ATTR ObjectMonitor::exit(TRAPS) &#123;</span><br><span class="line">   Thread * Self = THREAD ;</span><br><span class="line">   if (THREAD != _owner) &#123;</span><br><span class="line">     if (THREAD-&gt;is_lock_owned((address) _owner)) &#123;</span><br><span class="line">       // Transmute _owner from a BasicLock pointer to a Thread address.</span><br><span class="line">       // We don&apos;t need to hold _mutex for this transition.</span><br><span class="line">       // Non-null to Non-null is safe as long as all readers can</span><br><span class="line">       // tolerate either flavor.</span><br><span class="line">       assert (_recursions == 0, &quot;invariant&quot;) ;</span><br><span class="line">       _owner = THREAD ;</span><br><span class="line">       _recursions = 0 ;</span><br><span class="line">       OwnerIsThread = 1 ;</span><br><span class="line">     &#125; else &#123;</span><br><span class="line">       // NOTE: we need to handle unbalanced monitor enter/exit</span><br><span class="line">       // in native code by throwing an exception.</span><br><span class="line">       // TODO: Throw an IllegalMonitorStateException ?</span><br><span class="line">       TEVENT (Exit - Throw IMSX) ;</span><br><span class="line">       assert(false, &quot;Non-balanced monitor enter/exit!&quot;);</span><br><span class="line">       if (false) &#123;</span><br><span class="line">          THROW(vmSymbols::java_lang_IllegalMonitorStateException());</span><br><span class="line">       &#125;</span><br><span class="line">       return;</span><br><span class="line">     &#125;</span><br><span class="line">   &#125;</span><br><span class="line"> </span><br><span class="line">   ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>最终通过底层的park()方法挂起当前线程。</li>
+</ul>
+<h3 id="notify-方法"><a href="#notify-方法" class="headerlink" title="notify()方法"></a>notify()方法</h3><p>与wait()方法类似，最终也是调用的底层native方法:ObjectMonitor::notify(TRAPS)。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">void ObjectMonitor::notify(TRAPS) &#123;</span><br><span class="line">  CHECK_OWNER();</span><br><span class="line">  if (_WaitSet == NULL) &#123;</span><br><span class="line">     TEVENT (Empty-Notify) ;</span><br><span class="line">     return ;</span><br><span class="line">  &#125;</span><br><span class="line">  DTRACE_MONITOR_PROBE(notify, this, object(), THREAD);</span><br><span class="line"> </span><br><span class="line">  int Policy = Knob_MoveNotifyee ;</span><br><span class="line"> </span><br><span class="line">  Thread::SpinAcquire (&amp;_WaitSetLock, &quot;WaitSet - notify&quot;) ;</span><br><span class="line">  ObjectWaiter * iterator = DequeueWaiter() ;</span><br><span class="line">  if (iterator != NULL) &#123;</span><br><span class="line">     TEVENT (Notify1 - Transfer) ;</span><br><span class="line">     guarantee (iterator-&gt;TState == ObjectWaiter::TS_WAIT, &quot;invariant&quot;) ;</span><br><span class="line">     guarantee (iterator-&gt;_notified == 0, &quot;invariant&quot;) ;</span><br><span class="line">     if (Policy != 4) &#123;</span><br><span class="line">        iterator-&gt;TState = ObjectWaiter::TS_ENTER ;</span><br><span class="line">     &#125;</span><br><span class="line">     iterator-&gt;_notified = 1 ;</span><br><span class="line"> </span><br><span class="line">     ObjectWaiter * List = _EntryList ;</span><br><span class="line">     if (List != NULL) &#123;</span><br><span class="line">        assert (List-&gt;_prev == NULL, &quot;invariant&quot;) ;</span><br><span class="line">        assert (List-&gt;TState == ObjectWaiter::TS_ENTER, &quot;invariant&quot;) ;</span><br><span class="line">        assert (List != iterator, &quot;invariant&quot;) ;</span><br><span class="line">     &#125;</span><br><span class="line"> </span><br><span class="line">     if (Policy == 0) &#123;       // prepend to EntryList</span><br><span class="line">         </span><br><span class="line">     &#125; else if (Policy == 1) &#123;      // append to EntryList</span><br><span class="line">         </span><br><span class="line">     &#125; else if (Policy == 2) &#123;      // prepend to cxq</span><br><span class="line">         </span><br><span class="line">     &#125;</span><br><span class="line">     ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>ObjectMonitor::notify(TRAPS)方法的基本步骤为：</p>
+<ul>
+<li><p>若_WaitSet为NULL，即没有需要唤醒的线程，则直接退出；</p>
+</li>
+<li><p>通过ObjectMonitor::DequeueWaiter方法，获取_WaitSet列表中的第一个ObjectWaiter节点；</p>
+</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">inline ObjectWaiter* ObjectMonitor::DequeueWaiter() &#123;</span><br><span class="line">  // dequeue the very first waiter</span><br><span class="line">  ObjectWaiter* waiter = _WaitSet;</span><br><span class="line">  if (waiter) &#123;</span><br><span class="line">    DequeueSpecificWaiter(waiter);</span><br><span class="line">  &#125;</span><br><span class="line">  return waiter;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>根据不同的策略，将取出来的ObjectWaiter节点，加入到_EntryList或则通过Atomic::cmpxchg_ptr指令进行自旋操作cxq。</li>
+</ul>
+<h3 id="notifyAll-方法"><a href="#notifyAll-方法" class="headerlink" title="notifyAll()方法"></a>notifyAll()方法</h3><p>lock.notifyAll()方法最终通过ObjectMonitor的void notifyAll(TRAPS)实现：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">void ObjectMonitor::notifyAll(TRAPS) &#123;</span><br><span class="line">  ...</span><br><span class="line"> </span><br><span class="line">  for (;;) &#123;</span><br><span class="line">     iterator = DequeueWaiter () ;</span><br><span class="line">     if (iterator == NULL) break ;</span><br><span class="line">     TEVENT (NotifyAll - Transfer1) ;</span><br><span class="line">     ++Tally ;</span><br><span class="line"> </span><br><span class="line">     ...</span><br><span class="line"> </span><br><span class="line">     ObjectWaiter * List = _EntryList ;</span><br><span class="line">     if (List != NULL) &#123;</span><br><span class="line">        assert (List-&gt;_prev == NULL, &quot;invariant&quot;) ;</span><br><span class="line">        assert (List-&gt;TState == ObjectWaiter::TS_ENTER, &quot;invariant&quot;) ;</span><br><span class="line">        assert (List != iterator, &quot;invariant&quot;) ;</span><br><span class="line">     &#125;</span><br><span class="line"> </span><br><span class="line">     if (Policy == 0) &#123;       // prepend to EntryList</span><br><span class="line">         </span><br><span class="line">     &#125; else if (Policy == 1) &#123;      // append to EntryList</span><br><span class="line">         </span><br><span class="line">     &#125; else if (Policy == 2) &#123;      // prepend to cxq</span><br><span class="line">         </span><br><span class="line">     &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>该方法和notify()方法比较类似，不同的是，notifyAll()通过for循环取出_WaitSet的ObjectWaiter节点，并根据不同策略，加入到_EntryList或则进行自旋操作。</p>
+<h3 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h3><ol>
+<li>wait()方法会释放所占有的ObjectMonitor对象；</li>
+<li>notify()和notifyAll()并不会释放所占有的ObjectMonitor对象，只是将相应的等待线程从_WaitSet转移到_EntryList中，然后等待竞争锁；</li>
+<li>真正释放ObjectMonitor对象的时机是，退出同步代码块或同步方法时，即执行monitorexit指令时；</li>
+<li>一旦释放ObjectMonitor对象后，_EntityList中ObjectWaiter节点所保存的线程即可以参与竞争ObjectMonitor对象了；</li>
+<li>wait()/notify()基本就是C/C++版的AQS(啥是AQS，可参见我的<a href="https://www.jianshu.com/p/0f876ead2846" target="_blank" rel="noopener">另外一篇文章</a>)。</li>
+</ol>
+<h2 id="Condition"><a href="#Condition" class="headerlink" title="Condition"></a>Condition</h2><p>Condition出现在JDK1.5中的J.U.C包中，由Doug Lea李大爷操刀设计并开发完成。</p>
+<p>Condition是个接口，其方法有：</p>
+<p><img src="https://upload-images.jianshu.io/upload_images/10431632-ac67fb575dd3eab8.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt=""></p>
+<ul>
+<li>await()方法对应于Object的wait();</li>
+<li>signal()方法对应于Object的notify();</li>
+<li>signalAll()方法对应于Object的notifyAll();</li>
+</ul>
+<p>像Object的wait()/notify()方法必须在Synchronized中调用类似，Condition的await()/siganl()方法必须在Lock中调用。</p>
+<p>Condition接口的实现类是AQS中的ConditionObject。</p>
+<p><img src="https://upload-images.jianshu.io/upload_images/10431632-505d7e5f0bcf1884.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt=""></p>
+<p>跟进ConditionObject的源码，查看await()的实现方式：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">public final void await() throws InterruptedException &#123;</span><br><span class="line">		if (Thread.interrupted())</span><br><span class="line">				throw new InterruptedException();</span><br><span class="line">		Node node = addConditionWaiter();</span><br><span class="line">		int savedState = fullyRelease(node);</span><br><span class="line">		int interruptMode = 0;</span><br><span class="line">		while (!isOnSyncQueue(node)) &#123;</span><br><span class="line">				LockSupport.park(this);</span><br><span class="line">				if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)</span><br><span class="line">						break;</span><br><span class="line">		&#125;</span><br><span class="line">		if (acquireQueued(node, savedState) &amp;&amp; interruptMode != THROW_IE)</span><br><span class="line">				interruptMode = REINTERRUPT;</span><br><span class="line">		if (node.nextWaiter != null) // clean up if cancelled</span><br><span class="line">				unlinkCancelledWaiters();</span><br><span class="line">		if (interruptMode != 0)</span><br><span class="line">				reportInterruptAfterWait(interruptMode);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以发现，其与ObjectMonitor::wait流程基本类似，都是将当前线程封装成node节点，然后添加到等待队列，最后挂起当前线程。</p>
+<p>只不过是ConditionObject实现了Java版的wait()流程，如<strong>Object的wait()方法是通过native的park()方法挂起当前线程的，而ConditionObject则使用的则是LockSupport工具类的park()方法。</strong></p>
+<h3 id="构建Condition对象"><a href="#构建Condition对象" class="headerlink" title="构建Condition对象"></a>构建Condition对象</h3><p>可以通过Lock接口创建Condition对象，Lock接口中定义了newCondition()方法:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Condition newCondition();</span><br></pre></td></tr></table></figure>
+<p>获取方式如下所示:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Lock lock = new ReentrantLock();</span><br><span class="line">Condition c1 = lock.newCondition();</span><br><span class="line">Condition c2 = lock.newCondition();</span><br></pre></td></tr></table></figure>
+<p>ReentrantLock唯一实现了Lock接口，看一下ReentrantLock的对newCondition()的实现：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">public Condition newCondition() &#123;</span><br><span class="line">		return sync.newCondition();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>发现调用的是内部类的sync的newCondition()方法:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">final ConditionObject newCondition() &#123;</span><br><span class="line">		return new ConditionObject();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以发现，最终创建的就是AQS中的ConditionObject，由其实现Condition接口的各个方法。</p>
+<h3 id="实例"><a href="#实例" class="headerlink" title="实例"></a>实例</h3><p>下面，我们通过Condition的await()/signal()来完成一个小Demo:</p>
+<p>首先定义一个服务MyService:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line">public class MyService &#123;</span><br><span class="line"></span><br><span class="line">    // 实例化一个ReentrantLock对象</span><br><span class="line">    private ReentrantLock lock = new ReentrantLock();</span><br><span class="line"></span><br><span class="line">    // 为线程A注册一个Condition</span><br><span class="line">    public Condition conditionA = lock.newCondition();</span><br><span class="line"></span><br><span class="line">    // 为线程B注册一个Condition</span><br><span class="line">    public Condition conditionB = lock.newCondition();</span><br><span class="line"></span><br><span class="line">    public void awitA()&#123;</span><br><span class="line">        try&#123;</span><br><span class="line">            lock.lock();</span><br><span class="line">            System.out.println(Thread.currentThread().getName() + &quot;进入了awitA方法&quot;);</span><br><span class="line">            long timeBefore = System.currentTimeMillis();</span><br><span class="line">            // 执行condition等待</span><br><span class="line">            conditionA.await();</span><br><span class="line">            long timeAfter = System.currentTimeMillis();</span><br><span class="line">            System.out.println(Thread.currentThread().getName() + &quot;等待了：&quot; + (timeAfter-timeBefore)/1000 + &quot; s&quot;);</span><br><span class="line">        &#125;catch (Exception e)&#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;finally &#123;</span><br><span class="line">            lock.unlock();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    public void awitB()&#123;</span><br><span class="line">        try&#123;</span><br><span class="line">            lock.lock();</span><br><span class="line">            System.out.println(Thread.currentThread().getName() + &quot;进入了awitB方法&quot;);</span><br><span class="line">            long timeBefore = System.currentTimeMillis();</span><br><span class="line">            // 执行condition等待</span><br><span class="line">            conditionB.await();</span><br><span class="line">            long timeAfter = System.currentTimeMillis();</span><br><span class="line">            System.out.println(Thread.currentThread().getName() + &quot;等待了：&quot; + (timeAfter-timeBefore)/1000 + &quot; s&quot;);</span><br><span class="line">        &#125;catch (Exception e)&#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;finally &#123;</span><br><span class="line">            lock.unlock();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public void signallA()&#123;</span><br><span class="line">        try&#123;</span><br><span class="line">            lock.lock();</span><br><span class="line">            System.out.println(&quot;启动唤醒程序&quot;);</span><br><span class="line">            // 唤醒所有注册conditionA的线程</span><br><span class="line">            conditionA.signalAll();</span><br><span class="line">        &#125;finally &#123;</span><br><span class="line">            lock.unlock();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public void signallB()&#123;</span><br><span class="line">        try&#123;</span><br><span class="line">            lock.lock();</span><br><span class="line">            System.out.println(&quot;启动唤醒程序&quot;);</span><br><span class="line">            // 唤醒所有注册conditionB的线程</span><br><span class="line">            conditionB.signalAll();</span><br><span class="line">        &#125;finally &#123;</span><br><span class="line">            lock.unlock();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>然后构建两个线程，均持有MyService对象：</p>
+<p>线程A:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">public class MyServiceThreadA implements Runnable&#123;</span><br><span class="line"></span><br><span class="line">    private MyService service;</span><br><span class="line"></span><br><span class="line">    public MyServiceThreadA(MyService service) &#123;</span><br><span class="line">        this.service = service;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    public void run() &#123;</span><br><span class="line">        service.awitA();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>线程B:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">public class MyServiceThreadB implements Runnable&#123;</span><br><span class="line"></span><br><span class="line">    private MyService service;</span><br><span class="line"></span><br><span class="line">    public MyServiceThreadB(MyService service) &#123;</span><br><span class="line">        this.service = service;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    public void run() &#123;</span><br><span class="line">        service.awitB();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>主函数为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">public class ApplicationCondition &#123;</span><br><span class="line"></span><br><span class="line">    public static void main(String[] args) throws InterruptedException &#123;</span><br><span class="line">        MyService service = new MyService();</span><br><span class="line">        Runnable runnableA = new MyServiceThreadA(service);</span><br><span class="line">        Runnable runnableB = new MyServiceThreadB(service);</span><br><span class="line"></span><br><span class="line">        new Thread(runnableA, &quot;a&quot;).start();</span><br><span class="line">        new Thread(runnableB, &quot;b&quot;).start();</span><br><span class="line"></span><br><span class="line">        Thread.sleep(2000);</span><br><span class="line">        // 唤醒所有持有ConditionA的线程</span><br><span class="line">        service.signallA();</span><br><span class="line"></span><br><span class="line">        Thread.sleep(2000);</span><br><span class="line">        // 唤醒所有持有ConditionB的线程</span><br><span class="line">        service.signallB();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>运行结果为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">a进入了awitA方法</span><br><span class="line">b进入了awitB方法</span><br><span class="line">启动唤醒程序</span><br><span class="line">a等待了：2 s</span><br><span class="line">启动唤醒程序</span><br><span class="line">b等待了：4 s</span><br><span class="line"></span><br><span class="line">Process finished with exit code 0</span><br></pre></td></tr></table></figure>
+<p>可以看到，在实现线程协作时，Condition具有更大的灵活性，比如现在有3个线程A、B、C，线程A更新了某数据，需要通知线程B去拿新数据做搞事情，而C线程继续休眠，此种情况采用Object的wait()/notify()是难以实现的，因为notify()唤醒的线程是难以控制和指定的，而Condition却可以轻松完成这一切。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本文主要介绍了线程协作的两种方式，分别为Object的wait()/notify()和Condition的await()/signal()。</p>
+<p>两种方式在原理上基本类似，均实现了等待/通知机制，相比使用Object的wait()、notify()，使用Condition的await()、signal()这种方式实现线程间协作更加安全和高效。因此通常来说比较推荐使用Condition，如阻塞队列实际上使用了Condition来模拟线程间协作。</p>
+<p><strong>参考文献:</strong></p>
+<ul>
+<li><a href="https://www.cnblogs.com/dolphin0520/p/3920385.html" target="_blank" rel="noopener">https://www.cnblogs.com/dolphin0520/p/3920385.html</a></li>
+<li><a href="http://www.importnew.com/30150.html" target="_blank" rel="noopener">http://www.importnew.com/30150.html</a></li>
+<li><a href="https://blog.csdn.net/qq_38293564/article/details/80432875" target="_blank" rel="noopener">https://blog.csdn.net/qq_38293564/article/details/80432875</a></li>
+<li><a href="https://www.cnblogs.com/superfj/p/7543927.html" target="_blank" rel="noopener">https://www.cnblogs.com/superfj/p/7543927.html</a></li>
+</ul>
+<p><img src="https://upload-images.jianshu.io/upload_images/10431632-86426e609c966a5e.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt=""></p>
+<p>欢迎您扫一扫上面的二维码，关注我的微信公众号！</p>
+
+      
+    </div>
+    
+    
+    
+	
+	<div>
+	
+		<div>
+    
+        <div style="text-align:center;color: #ccc;font-size:14px;">-------------本文结束<i class="fa fa-paw"></i>感谢您的阅读-------------</div>
+    
+</div>
+	
+	</div>
+
+    
+      <div>
+        <div id="wechat_subscriber" style="display: block; padding: 10px 0; margin: 20px auto; width: 100%; text-align: center">
+    <img id="wechat_subscriber_qcode" src="/uploads/wechat-qcode.jpg" alt="Ruan Shubin wechat" style="width: 200px; max-width: 100%;">
+    <div>欢迎您扫一扫上面的二维码，关注我的微信公众号！</div>
+</div>
+
+      </div>
+    
+
+    
+
+    
+      <div>
+        <ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者：</strong>
+    Ruan Shubin
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="http://ruanshubin.top/2019/05/07/浅谈线程间的协作机制/" title="浅谈线程间的协作机制">http://ruanshubin.top/2019/05/07/浅谈线程间的协作机制/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>
+    本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/" rel="external nofollow" target="_blank">CC BY-NC-SA 3.0</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+
+      </div>
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Java/" rel="tag"><i class="fa fa-tag"></i> Java</a>
+          
+            <a href="/tags/并发/" rel="tag"><i class="fa fa-tag"></i> 并发</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/05/05/浅谈Java并发中的AQS/" rel="next" title="浅谈Java并发中的AQS">
+                <i class="fa fa-chevron-left"></i> 浅谈Java并发中的AQS
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/05/20/Java的锁机制--synchronsized关键字/" rel="prev" title="Java的锁机制--synchronsized关键字">
+                Java的锁机制--synchronsized关键字 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+        <!-- JiaThis Button BEGIN -->
+<div class="jiathis_style">
+<span class="jiathis_txt">分享到：</span>
+<a class="jiathis_button_weixin">微信</a>
+<a class="jiathis_button_qzone">QQ空间</a>
+<a class="jiathis_button_tsina">新浪微博</a>
+<a class="jiathis_button_zhihu">知乎</a>
+<a class="jiathis_button_share">一键分享</a>
+
+<a href="http://www.jiathis.com/share?uid=2140465" class="jiathis jiathis_txt jiathis_separator jtico jtico_jiathis" target="_blank">更多</a>
+<a class="jiathis_counter_style"></a>
+</div>
+<script type="text/javascript">
+var jiathis_config={
+  data_track_clickback:true,
+  summary:"",
+  shortUrl:false,
+  hideMore:false
+}
+</script>
+<script type="text/javascript" src="http://v3.jiathis.com/code/jia.js?uid=" charset="utf-8"></script>
+<!-- JiaThis Button END -->
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div class="comments" id="comments">
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8zMzc1NC8xMDMwOA"></div>
+    </div>
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/avatar.gif" alt="Ruan Shubin">
+            
+              <p class="site-author-name" itemprop="name">Ruan Shubin</p>
+              <p class="site-description motion-element" itemprop="description">一万年太久，只争朝夕！</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives">
+              
+                  <span class="site-state-item-count">23</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">8</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">20</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+            <div class="feed-link motion-element">
+              <a href="/atom.xml" rel="alternate">
+                <i class="fa fa-rss"></i>
+                RSS
+              </a>
+            </div>
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/Ruanshubin" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://weibo.com/u/2487162561" target="_blank" title="Weibo">
+                      
+                        <i class="fa fa-fw fa-weibo"></i>Weibo</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://blog.csdn.net/wenwu_both" target="_blank" title="CSDN">
+                      
+                        <i class="fa fa-fw fa-book"></i>CSDN</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="http://tcrl.zju.edu.cn/" target="_blank" title="Lab">
+                      
+                        <i class="fa fa-fw fa-users"></i>Lab</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#等待-通知机制"><span class="nav-number">1.</span> <span class="nav-text">等待/通知机制</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#wait-notify"><span class="nav-number">2.</span> <span class="nav-text">wait()/notify()</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#入门实例"><span class="nav-number">2.1.</span> <span class="nav-text">入门实例</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#wait-方法"><span class="nav-number">2.2.</span> <span class="nav-text">wait()方法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#notify-方法"><span class="nav-number">2.3.</span> <span class="nav-text">notify()方法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#notifyAll-方法"><span class="nav-number">2.4.</span> <span class="nav-text">notifyAll()方法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#小结"><span class="nav-number">2.5.</span> <span class="nav-text">小结</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Condition"><span class="nav-number">3.</span> <span class="nav-text">Condition</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#构建Condition对象"><span class="nav-number">3.1.</span> <span class="nav-text">构建Condition对象</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#实例"><span class="nav-number">3.2.</span> <span class="nav-text">实例</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">4.</span> <span class="nav-text">总结</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Ruan Shubin</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+      <span class="post-meta-item-text">全站总字数&#58;</span>
+    
+    <span title="全站总字数">57.8k</span>
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Pisces</a> v5.1.4</div>
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+
+  
+</div>
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  <script type="text/javascript">
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url);
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x" /></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x" /></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+  
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdn.bootcss.com/mathjax/2.7.1/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+
+  
+
+  
+
+</body>
+</html>
