@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=5.1.4">
+
+
+
+
+
+
+
+  <meta name="keywords" content="Java,并发,">
+
+
+
+
+
+  <link rel="alternate" href="/atom.xml" title="阮树斌 | 技术改变生活" type="application/atom+xml">
+
+
+
+
+
+
+<meta name="description" content="Java 不能直接访问操作系统底层，而是通过本地方法来访问。Unsafe 类提供了硬件级别的原子操作。  Unsafe 类在 sun.misc 包下，不属于 Java 标准。很多 Java 的基础类库，包括一些被广泛使用的高性能开发库都是基于 Unsafe 类开发，比如 Netty、Hadoop、Kafka 等。  Unsafe 是用于在实质上扩展 Java 语言表达能力、便于在更高层（Java">
+<meta name="keywords" content="Java,并发">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Unsafe类详解">
+<meta property="og:url" content="http://ruanshubin.top/2019/09/25/Unsafe类详解/index.html">
+<meta property="og:site_name" content="阮树斌 | 技术改变生活">
+<meta property="og:description" content="Java 不能直接访问操作系统底层，而是通过本地方法来访问。Unsafe 类提供了硬件级别的原子操作。  Unsafe 类在 sun.misc 包下，不属于 Java 标准。很多 Java 的基础类库，包括一些被广泛使用的高性能开发库都是基于 Unsafe 类开发，比如 Netty、Hadoop、Kafka 等。  Unsafe 是用于在实质上扩展 Java 语言表达能力、便于在更高层（Java">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2019-09-25T02:57:52.241Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Unsafe类详解">
+<meta name="twitter:description" content="Java 不能直接访问操作系统底层，而是通过本地方法来访问。Unsafe 类提供了硬件级别的原子操作。  Unsafe 类在 sun.misc 包下，不属于 Java 标准。很多 Java 的基础类库，包括一些被广泛使用的高性能开发库都是基于 Unsafe 类开发，比如 Netty、Hadoop、Kafka 等。  Unsafe 是用于在实质上扩展 Java 语言表达能力、便于在更高层（Java">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://ruanshubin.top/2019/09/25/Unsafe类详解/">
+
+
+
+
+
+  <title>Unsafe类详解 | 阮树斌 | 技术改变生活</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+
+   <canvas class="fireworks" style="position: fixed;left: 0;top: 0;z-index: 1; pointer-events: none;"></canvas> 
+   <script type="text/javascript" src="//cdn.bootcss.com/animejs/2.2.0/anime.min.js"></script> 
+   <script type="text/javascript" src="/js/src/fireworks.js"></script>
+
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+	<a href="https://github.com/Ruanshubin" class="github-corner" aria-label="View source on Github">
+	<svg width="80" height="80" viewbox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true">
+	<path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"/>
+	<path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"/>
+	<path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"/>
+	</svg>
+	</a>
+	<style>
+	.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}
+	</style>
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">阮树斌 | 技术改变生活</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">交通 | 数据 | 算法 <br> Java | Python | Scala | Matlab | GIS</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-首页">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-分类">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br>
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-归档">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-标签">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-关于">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br>
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+	
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://ruanshubin.top/2019/09/25/Unsafe类详解/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Ruan Shubin">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="阮树斌 | 技术改变生活">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Unsafe类详解</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-09-25T10:55:00+08:00">
+                2019-09-25
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/并发编程/" itemprop="url" rel="index">
+                    <span itemprop="name">并发编程</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-wordcount">
+              
+                
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">字数统计&#58;</span>
+                
+                <span title="字数统计">
+                  4.5k 字
+                </span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">
+                  20 分钟
+                </span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <blockquote>
+<p>Java 不能直接访问操作系统底层，而是通过本地方法来访问。Unsafe 类提供了硬件级别的原子操作。</p>
+</blockquote>
+<p>Unsafe 类在 sun.misc 包下，不属于 Java 标准。很多 Java 的基础类库，包括一些被广泛使用的高性能开发库都是基于 Unsafe 类开发，比如 Netty、Hadoop、Kafka 等。</p>
+<ul>
+<li>Unsafe 是用于在实质上扩展 Java 语言表达能力、便于在更高层（Java 层）代码里实现原本要在更低层（C 层）实现的核心库功能用的。</li>
+<li>这些功能包括裸内存的申请/释放/访问，低层硬件的 atomic/volatile 支持，创建未初始化对象等。</li>
+<li>它原本的设计就只应该被标准库使用，因此不建议在生产环境中使用。</li>
+</ul>
+<h2 id="获取实例"><a href="#获取实例" class="headerlink" title="获取实例"></a>获取实例</h2><p>Unsafe 对象不能直接通过 new Unsafe() 或调用 Unsafe.getUnsafe() 获取。</p>
+<p>Unsafe 被设计成单例模式，构造方法私有。</p>
+<p>getUnsafe 被设计成只能从引导类加载器（bootstrap class loader）加载。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">private Unsafe() &#123;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public static Unsafe getUnsafe() &#123;</span><br><span class="line">        Class var0 = Reflection.getCallerClass(2);</span><br><span class="line">        if (var0.getClassLoader() != null) &#123;</span><br><span class="line">            throw new SecurityException(&quot;Unsafe&quot;);</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            return theUnsafe;</span><br><span class="line">        &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>非启动类加载器直接调用 Unsafe.getUnsafe() 方法会抛出 SecurityException 异常。</p>
+<p>解决办法有两个:</p>
+<ul>
+<li>令代码 “ 受信任 “</li>
+</ul>
+<p>运行程序时，通过 JVM 参数设置 bootclasspath 选项，指定系统类路径加上使用的一个 Unsafe 路径。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">java -Xbootclasspath:/usr/jdk1.7.0/jre/lib/rt.jar:. com.mishadoff.magic.UnsafeClient</span><br></pre></td></tr></table></figure>
+<ul>
+<li>Java 反射机制</li>
+</ul>
+<p>通过将 private 单例实例暴力设置 accessible 为 true，然后通过 Field 的 get 方法，直接获取一个 Object 强制转换为 Unsafe。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Field f = Unsafe.class.getDeclaredField(&quot;theUnsafe&quot;);</span><br><span class="line">f.setAccessible(true);</span><br><span class="line">Unsafe unsafe = (Unsafe) f.get(null);</span><br></pre></td></tr></table></figure>
+<p>在 IDE 中，这些方法会被标志为 Error，可以通过以下设置解决：</p>
+<p>Preferences -&gt; Java -&gt; Compiler -&gt; Errors/Warnings -&gt; Deprecated and restricted API -&gt; Forbidden reference -&gt; Warning</p>
+<h2 id="常用方法"><a href="#常用方法" class="headerlink" title="常用方法"></a>常用方法</h2><p>Unsafe 的大部分 API 都是 native 的方法。</p>
+<h3 id="Classes-Objects"><a href="#Classes-Objects" class="headerlink" title="Classes/Objects"></a>Classes/Objects</h3><p>创建类对象，不进行初始化：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">//实例化对象，但是不进行初始化，类初始化和实例初始化都不调用</span><br><span class="line">Object allocateInstance(Class&lt;?&gt; cls)</span><br></pre></td></tr></table></figure>
+<p>对象和字段的地址获取：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">//字段在内存中的地址相对于实例对象内存地址的偏移量</span><br><span class="line">public long objectFieldOffset(Field f)</span><br><span class="line">public long objectFieldOffset(Class&lt;?&gt; c, String name)</span><br><span class="line">//静态字段在类对象中的偏移</span><br><span class="line">public long staticFieldOffset(Field f)</span><br><span class="line">//获得静态字段所对应类对象，等同于f.getDeclaringClass()</span><br><span class="line">public Object staticFieldBase(Field f)</span><br></pre></td></tr></table></figure>
+<p>读取/修改对象上指定偏移位置的值，其他基本数据类型(boolean,char,byte,short,float,double,long)类似：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">public native int getInt(Object o, long offset);</span><br><span class="line">public native void putInt(Object o, long offset, int x);</span><br></pre></td></tr></table></figure>
+<p>此外还可以读取/设定引用值reference value,指针native pointer</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">//获得给定对象偏移量上的引用类型的值</span><br><span class="line">public native Object getObject(Object o, long offset);</span><br><span class="line">//设置给定对象偏移量上的引用类型的值</span><br><span class="line">public native void putObject(Object o, long offset, Object x);</span><br><span class="line">//获取、设定本地指针的值，等同于获取、设定int或者是long类型的数据</span><br><span class="line">public long getAddress(Object o, long offset)</span><br><span class="line">public void putAddress(Object o, long offset, long x)</span><br></pre></td></tr></table></figure>
+<p>以上方法都是通过两个参数引用到一个变量，叫做double-register地址模式，<br>当Object引用为null时，把offset作为绝对地址，使用绝对地址的API，叫做single-register地址模式，例如：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">public void putInt(long address, int x) &#123;</span><br><span class="line">	putInt(null, address, x);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>此时address可以指向通过Unsafe.allocateMemory获取的内存块中的地址，类似于C语言中的指针，直接指明实际要读写的地址</p>
+<h3 id="数组相关"><a href="#数组相关" class="headerlink" title="数组相关"></a>数组相关</h3><p>数组头部还存储有数组的长度信息，索引访问数组元素时需要知道第一个元素与起始位置的偏移地址，Unsafe类包含所有的基本数据类型和Object类型的偏移的常量值，名称为ARRAY_<em>*</em>_BASE_OFFSET</p>
+<p>同时访问数组第i个元素，对应偏移的确定需要乘以一个比例值，即数组中单个元素的长度，Unsafe中对应的常量为ARRAY_<em>*</em>_INDEX_SCALE</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">// 初始偏移</span><br><span class="line">public int arrayBaseOffset(Class&lt;?&gt; arrayClass)</span><br><span class="line"></span><br><span class="line">public static final int ARRAY_BOOLEAN_BASE_OFFSET</span><br><span class="line">        = theUnsafe.arrayBaseOffset(boolean[].class);</span><br><span class="line"></span><br><span class="line">public static final int ARRAY_OBJECT_BASE_OFFSET</span><br><span class="line">        = theUnsafe.arrayBaseOffset(Object[].class);</span><br><span class="line">// 比例值</span><br><span class="line">public int arrayIndexScale(Class&lt;?&gt; arrayClass)</span><br><span class="line"></span><br><span class="line">public static final int ARRAY_BOOLEAN_INDEX_SCALE</span><br><span class="line">        = theUnsafe.arrayIndexScale(boolean[].class);</span><br><span class="line"></span><br><span class="line">public static final int ARRAY_OBJECT_INDEX_SCALE</span><br><span class="line">        = theUnsafe.arrayIndexScale(Object[].class);</span><br></pre></td></tr></table></figure>
+<p>两个信息配合使用，就可以得到数组中每个元素相对内存起点的偏移，然后进行读写</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">// java8中的ConcurrentHashMap</span><br><span class="line">Class&lt;?&gt; ak = Node[].class;</span><br><span class="line">ABASE = U.arrayBaseOffset(ak);</span><br><span class="line">int scale = U.arrayIndexScale(ak);</span><br><span class="line">ASHIFT = 31 - Integer.numberOfLeadingZeros(scale);</span><br><span class="line"></span><br><span class="line">//具体使用，i代表索引</span><br><span class="line">static final &lt;K,V&gt; boolean casTabAt(Node&lt;K,V&gt;[] tab, int i,</span><br><span class="line">									Node&lt;K,V&gt; c, Node&lt;K,V&gt; v) &#123;</span><br><span class="line">	return U.compareAndSwapObject(tab, ((long)i &lt;&lt; ASHIFT) + ABASE, c, v);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="CAS-相关"><a href="#CAS-相关" class="headerlink" title="CAS 相关"></a>CAS 相关</h3><p>compareAndSwap，内存偏移地址 offset，预期值 expected，新值 x。如果变量在当前时刻的值和预期值 expected 相等，尝试将变量的值更新为 x。如果更新成功，返回 true；否则，返回 false。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">//更新变量值为x，如果当前值为expected</span><br><span class="line">//o：对象 offset：偏移量 expected：期望值 x：新值</span><br><span class="line">public final native boolean compareAndSwapObject(Object o, long offset, Object expected, Object x);</span><br><span class="line">  </span><br><span class="line">public final native boolean compareAndSwapInt(Object o, long offset, int expected, int x);</span><br><span class="line">  </span><br><span class="line">public final native boolean compareAndSwapLong(Object o, long offset, long expected, long x);</span><br></pre></td></tr></table></figure>
+<p>compareAndSwapObject方法中的第一个参数和第二个参数，用于确定待操作对象在内存中的具体位置的，然后取出值和第三个参数进行比较，如果相等，则将内存中的值更新为第四个参数的值，同时返回true，表明原子更新操作完毕。反之则不更新内存中的值，同时返回false，表明原子操作失败。</p>
+<p>同样的，compareAndSwapInt方法也是相似的道理，第一个，第二个参数用来确定当前操作对象在内存中的存储值，然后和第三个expect value比较，如果相等，则将内存值更新为第四个update value值。</p>
+<p>JDK 1.8 中基于 CAS 扩展。作用都是，通过 CAS 设置新的值，返回旧的值。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">//增加</span><br><span class="line">public final int getAndAddInt(Object o, long offset, int delta) &#123;</span><br><span class="line"> int v;</span><br><span class="line"> do &#123;</span><br><span class="line"> v = getIntVolatile(o, offset);</span><br><span class="line"> &#125; while (!compareAndSwapInt(o, offset, v, v + delta));</span><br><span class="line"> return v;</span><br><span class="line">&#125;</span><br><span class="line">  </span><br><span class="line">public final long getAndAddLong(Object o, long offset, long delta) &#123;</span><br><span class="line"> long v;</span><br><span class="line"> do &#123;</span><br><span class="line"> v = getLongVolatile(o, offset);</span><br><span class="line"> &#125; while (!compareAndSwapLong(o, offset, v, v + delta));</span><br><span class="line"> return v;</span><br><span class="line">&#125;</span><br><span class="line">//设置</span><br><span class="line">public final int getAndSetInt(Object o, long offset, int newValue) &#123;</span><br><span class="line"> int v;</span><br><span class="line"> do &#123;</span><br><span class="line"> v = getIntVolatile(o, offset);</span><br><span class="line"> &#125; while (!compareAndSwapInt(o, offset, v, newValue));</span><br><span class="line"> return v;</span><br><span class="line">&#125;</span><br><span class="line">  </span><br><span class="line">public final long getAndSetLong(Object o, long offset, long newValue) &#123;</span><br><span class="line"> long v;</span><br><span class="line"> do &#123;</span><br><span class="line"> v = getLongVolatile(o, offset);</span><br><span class="line"> &#125; while (!compareAndSwapLong(o, offset, v, newValue));</span><br><span class="line"> return v;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public final Object getAndSetObject(Object o, long offset, Object newValue) &#123;</span><br><span class="line"> Object v;</span><br><span class="line"> do &#123;</span><br><span class="line"> v = getObjectVolatile(o, offset);</span><br><span class="line"> &#125; while (!compareAndSwapObject(o, offset, v, newValue));</span><br><span class="line"> return v;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>ABA 问题</li>
+</ul>
+<p>在多线程环境中，使用 CAS，如果一个线程对变量修改 2 次，第 2 次修改后的值和第 1 次修改前的值相同，其他线程对此一无所知，这类现象称为 ABA 问题。</p>
+<p>ABA 问题可以使用 JDK 并发包中的 AtomicStampedReference 和 AtomicMarkableReference 处理。</p>
+<p>AtomicStampedReference 是通过版本号（时间戳）来解决 ABA 问题的，也可以使用版本号（verison）来解决 ABA，即乐观锁每次在执行数据的修改操作时，都带上一个版本号，一旦版本号和数据的版本号一致就可以执行修改操作并对版本号执行 +1 操作，否则执行失败。</p>
+<p>AtomicMarkableReference 则是将一个 boolean 值作是否有更改的标记，本质就是它的版本号只有两个，true 和 false，修改的时候在两个版本号之间来回切换，虽然这样做并不能解决 ABA 的问题，但是会降低 ABA 问题发生的几率。</p>
+<h3 id="线程调度相关"><a href="#线程调度相关" class="headerlink" title="线程调度相关"></a>线程调度相关</h3><p>主要包括监视器锁定、解锁等。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">//取消阻塞线程</span><br><span class="line">public native void unpark(Object thread);</span><br><span class="line">//阻塞线程</span><br><span class="line">public native void park(boolean isAbsolute, long time);</span><br><span class="line">//获得对象锁</span><br><span class="line">public native void monitorEnter(Object o);</span><br><span class="line">//释放对象锁</span><br><span class="line">public native void monitorExit(Object o);</span><br><span class="line">//尝试获取对象锁，返回 true 或 false 表示是否获取成功</span><br><span class="line">public native boolean tryMonitorEnter(Object o);</span><br></pre></td></tr></table></figure>
+<h3 id="volatile-相关读写"><a href="#volatile-相关读写" class="headerlink" title="volatile 相关读写"></a>volatile 相关读写</h3><p>使用volatile机制加载读取数据，保证可见性，API包含所有的基本数据类型和Object类型</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">//设置给定对象的int值，使用volatile语义，即设置后立马更新到内存对其他线程可见</span><br><span class="line">public native void  putIntVolatile(Object o, long offset, int x);</span><br><span class="line">//获得给定对象的指定偏移量offset的int值，使用volatile语义，总能获取到最新的int值。</span><br><span class="line">public native int getIntVolatile(Object o, long offset);</span><br></pre></td></tr></table></figure>
+<p>此外还有一种惰性设定值的方式，通常出现在AtomicXXX.lazySet，它允许volatile变量和后续的内存操作重排序，就像普通非volatile变量的写操作，所以其他线程可能不能立即获取到新的值</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">putOrderedObject(Object o, long offset, Object x)</span><br><span class="line">putOrderedInt(Object o, long offset, int x)</span><br><span class="line">putOrderedLong(Object o, long offset, long x)</span><br></pre></td></tr></table></figure>
+<h3 id="内存屏障相关"><a href="#内存屏障相关" class="headerlink" title="内存屏障相关"></a>内存屏障相关</h3><p>JDK 1.8 引入 ，用于定义内存屏障，避免代码重排序。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">//内存屏障，禁止 load 操作重排序，即屏障前的load操作不能被重排序到屏障后，屏障后的 load 操作不能被重排序到屏障前</span><br><span class="line">public native void loadFence();</span><br><span class="line">//内存屏障，禁止 store 操作重排序，即屏障前的 store 操作不能被重排序到屏障后，屏障后的 store 操作不能被重排序到屏障前</span><br><span class="line">public native void storeFence();</span><br><span class="line">//内存屏障，禁止 load、store 操作重排序</span><br><span class="line">public native void fullFence();</span><br></pre></td></tr></table></figure>
+<h3 id="内存管理（非堆内存）"><a href="#内存管理（非堆内存）" class="headerlink" title="内存管理（非堆内存）"></a>内存管理（非堆内存）</h3><p>allocateMemory 所分配的内存需要手动 free（不被 GC 回收）。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">//（boolean、byte、char、short、int、long、float、double) 都有以下 get、put 两个方法。 </span><br><span class="line">//获得给定地址上的 int 值</span><br><span class="line">public native int getInt(long address);</span><br><span class="line">//设置给定地址上的 int 值</span><br><span class="line">public native void putInt(long address, int x);</span><br><span class="line">//获得本地指针</span><br><span class="line">public native long getAddress(long address);</span><br><span class="line">//存储本地指针到给定的内存地址</span><br><span class="line">public native void putAddress(long address, long x);</span><br><span class="line">  </span><br><span class="line">//分配指定大小的内存,内存没有被初始化</span><br><span class="line">public long allocateMemory(long bytes)</span><br><span class="line">//根据给定的内存地址address调整内存大小</span><br><span class="line">public long reallocateMemory(long address, long bytes)</span><br><span class="line"></span><br><span class="line">//将内存块中的所有字节设置为固定值，类似于C中的memoryset函数</span><br><span class="line">public void setMemory(Object o, long offset, long bytes, byte value)</span><br><span class="line">public void setMemory(long address, long bytes, byte value)</span><br><span class="line"></span><br><span class="line">//内存复制，支持两种地址模式</span><br><span class="line">public void copyMemory(Object srcBase, long srcOffset,</span><br><span class="line">                        Object destBase, long destOffset,</span><br><span class="line">                        long bytes)</span><br><span class="line">public void copyMemory(long srcAddress, long destAddress, long bytes)</span><br><span class="line"></span><br><span class="line">//释放allocateMemory和reallocateMemory申请的内存</span><br><span class="line">public native void freeMemory(long l);</span><br></pre></td></tr></table></figure>
+<h3 id="系统相关"><a href="#系统相关" class="headerlink" title="系统相关"></a>系统相关</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">//返回指针的大小。返回值为 4 或 8。</span><br><span class="line">public native int addressSize();</span><br><span class="line"></span><br><span class="line">/** The value of &#123;@code addressSize()&#125; */</span><br><span class="line">public static final int ADDRESS_SIZE = theUnsafe.addressSize();</span><br><span class="line">  </span><br><span class="line">//内存页的大小。</span><br><span class="line">public native int pageSize();</span><br></pre></td></tr></table></figure>
+<h3 id="其他"><a href="#其他" class="headerlink" title="其他"></a>其他</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">//获取系统的平均负载值，loadavg 这个 double 数组将会存放负载值的结果，nelems 决定样本数量，nelems 只能取值为 1 到 3，分别代表最近 1、5、15 分钟内系统的平均负载。</span><br><span class="line">//如果无法获取系统的负载，此方法返回 -1，否则返回获取到的样本数量（loadavg 中有效的元素个数）。</span><br><span class="line">public native int getLoadAverage(double[] loadavg, int nelems);</span><br><span class="line">//绕过检测机制直接抛出异常。</span><br><span class="line">public native void throwException(Throwable ee);</span><br></pre></td></tr></table></figure>
+<h2 id="Unsafe-类的使用场景"><a href="#Unsafe-类的使用场景" class="headerlink" title="Unsafe 类的使用场景"></a>Unsafe 类的使用场景</h2><h3 id="避免初始化"><a href="#避免初始化" class="headerlink" title="避免初始化"></a>避免初始化</h3><p>当想要绕过对象构造方法、安全检查器或者没有 public 的构造方法时，allocateInstance() 方法变得非常有用。</p>
+<p>编写一个简单的 Java 类。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">public class TestA &#123;</span><br><span class="line">    private int a = 0; </span><br><span class="line"></span><br><span class="line">    public TestA() &#123;</span><br><span class="line">        a = 1;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public int getA() &#123;</span><br><span class="line">        return a;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>构造方法、反射方法和 allocateInstance 方法的不同实现。</p>
+<p>将 public 构造方法修改为 private，allocateInstance 方法可以得到同样的结果。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">// constructor</span><br><span class="line">TestA constructorA = new TestA();</span><br><span class="line">System.out.println(constructorA.getA()); //print 1</span><br><span class="line"></span><br><span class="line">// reflection</span><br><span class="line">try &#123;</span><br><span class="line">     TestA reflectionA = TestA.class.newInstance();</span><br><span class="line">     System.out.println(reflectionA.getA()); //print 1</span><br><span class="line">&#125; catch (InstantiationException e) &#123;</span><br><span class="line">     e.printStackTrace();</span><br><span class="line">&#125; catch (IllegalAccessException e) &#123;</span><br><span class="line">     e.printStackTrace();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// unsafe</span><br><span class="line">Field f = null;</span><br><span class="line">try &#123;</span><br><span class="line">     f = Unsafe.class.getDeclaredField(&quot;theUnsafe&quot;);</span><br><span class="line">     f.setAccessible(true);</span><br><span class="line">     Unsafe unsafe = (Unsafe) f.get(null);</span><br><span class="line">     TestA unsafeA = (TestA) unsafe.allocateInstance(TestA.class);</span><br><span class="line">     System.out.println(unsafeA.getA()); //print 0</span><br><span class="line">&#125; catch (NoSuchFieldException e) &#123;</span><br><span class="line">     e.printStackTrace();</span><br><span class="line">&#125; catch (IllegalAccessException e) &#123;</span><br><span class="line">     e.printStackTrace();</span><br><span class="line">&#125; catch (InstantiationException e) &#123;</span><br><span class="line">     e.printStackTrace();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="内存修改"><a href="#内存修改" class="headerlink" title="内存修改"></a>内存修改</h3><p>Unsafe 可用于绕过安全的常用技术，直接修改内存变量。</p>
+<p>反射也可以实现相同的功能。但是 Unsafe 可以修改任何对象，甚至没有这些对象的引用。</p>
+<p>编写一个简单的 Java 类。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">public class TestA &#123;</span><br><span class="line"></span><br><span class="line">    private int ACCESS_ALLOWED = 1;</span><br><span class="line"></span><br><span class="line">    public boolean giveAccess() &#123;</span><br><span class="line">        return 40 == ACCESS_ALLOWED;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在正常情况下，giveAccess 总会返回 false。</p>
+<p>通过计算内存偏移，并使用 putInt() 方法，类的 ACCESS_ALLOWED 被修改。</p>
+<p>在已知类结构的时候，数据的偏移总是可以计算出来（与 c++ 中的类中数据的偏移计算是一致的）。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">// constructor</span><br><span class="line">TestA constructorA = new TestA();</span><br><span class="line">System.out.println(constructorA.giveAccess()); //print false</span><br><span class="line"></span><br><span class="line">// unsafe</span><br><span class="line">Field f = null;</span><br><span class="line">try &#123;</span><br><span class="line">    f = Unsafe.class.getDeclaredField(&quot;theUnsafe&quot;);</span><br><span class="line">    f.setAccessible(true);</span><br><span class="line">    Unsafe unsafe = (Unsafe) f.get(null);</span><br><span class="line">    TestA unsafeA = (TestA) unsafe.allocateInstance(TestA.class);</span><br><span class="line">    Field unsafeAField = unsafeA.getClass().getDeclaredField(&quot;ACCESS_ALLOWED&quot;);</span><br><span class="line">    unsafe.putInt(unsafeA, unsafe.objectFieldOffset(unsafeAField), 40); // memory corruption</span><br><span class="line">    System.out.println(unsafeA.giveAccess()); //print true</span><br><span class="line">&#125; catch (NoSuchFieldException e) &#123;</span><br><span class="line">    e.printStackTrace();</span><br><span class="line">&#125; catch (IllegalAccessException e) &#123;</span><br><span class="line">    e.printStackTrace();</span><br><span class="line">&#125; catch (InstantiationException e) &#123;</span><br><span class="line">    e.printStackTrace();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="动态类"><a href="#动态类" class="headerlink" title="动态类"></a>动态类</h3><p>可以在运行时创建一个类，比如从已编译的 .class 文件中将类内容读取为字节数组，并正确地传递给 defineClass 方法。</p>
+<p>当必须动态创建类，而现有代码中有一些代理，这非常有用。</p>
+<p>编写一个简单的 Java 类。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">public class TestA &#123;</span><br><span class="line"></span><br><span class="line">    private int a = 1;</span><br><span class="line"></span><br><span class="line">    public int getA() &#123;</span><br><span class="line">        return a;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public void setA(int a) &#123;</span><br><span class="line">        this.a = a;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>动态创建类。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">byte[] classContents = new byte[0];</span><br><span class="line">try &#123;</span><br><span class="line">      classContents = getClassContent();</span><br><span class="line">      Class c = getUnsafe().defineClass(null, classContents, 0, classContents.length);</span><br><span class="line">      System.out.println(c.getMethod(&quot;getA&quot;).invoke(c.newInstance(), null)); //print 1</span><br><span class="line">&#125; catch (Exception e) &#123;</span><br><span class="line">      e.printStackTrace();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">private static Unsafe getUnsafe() &#123;</span><br><span class="line">        Field f = null;</span><br><span class="line">        Unsafe unsafe = null;</span><br><span class="line">        try &#123;</span><br><span class="line">            f = Unsafe.class.getDeclaredField(&quot;theUnsafe&quot;);</span><br><span class="line">            f.setAccessible(true);</span><br><span class="line">            unsafe = (Unsafe) f.get(null);</span><br><span class="line">        &#125; catch (NoSuchFieldException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125; catch (IllegalAccessException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">        return unsafe;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">private static byte[] getClassContent() throws Exception &#123;</span><br><span class="line">        File f = new File(&quot;/home/test/TestA.class&quot;);</span><br><span class="line">        FileInputStream input = new FileInputStream(f);</span><br><span class="line">        byte[] content = new byte[(int) f.length()];</span><br><span class="line">        input.read(content);</span><br><span class="line">        input.close();</span><br><span class="line">        return content;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="大数组"><a href="#大数组" class="headerlink" title="大数组"></a>大数组</h3><p>Java 数组大小的最大值为 Integer.MAX_VALUE。使用直接内存分配，创建的数组大小受限于堆大小。</p>
+<p>Unsafe 分配的内存，分配在非堆内存，因为不执行任何边界检查，所以任何非法访问都可能会导致 JVM 崩溃。</p>
+<p>在需要分配大的连续区域、实时编程（不能容忍 JVM 延迟）时，可以使用它。java.nio 使用这一技术。</p>
+<p>创建一个 Java 类。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">public class SuperArray &#123;</span><br><span class="line"></span><br><span class="line">    private final static int BYTE = 1;</span><br><span class="line"></span><br><span class="line">    private long size;</span><br><span class="line">    private long address;</span><br><span class="line"></span><br><span class="line">    public SuperArray(long size) &#123;</span><br><span class="line">        this.size = size;</span><br><span class="line">        address = getUnsafe().allocateMemory(size * BYTE);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public void set(long i, byte value) &#123;</span><br><span class="line">        getUnsafe().putByte(address + i * BYTE, value);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public int get(long idx) &#123;</span><br><span class="line">        return getUnsafe().getByte(address + idx * BYTE);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public long size() &#123;</span><br><span class="line">        return size;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    private static Unsafe getUnsafe() &#123;</span><br><span class="line">        Field f = null;</span><br><span class="line">        Unsafe unsafe = null;</span><br><span class="line">        try &#123;</span><br><span class="line">            f = Unsafe.class.getDeclaredField(&quot;theUnsafe&quot;);</span><br><span class="line">            f.setAccessible(true);</span><br><span class="line">            unsafe = (Unsafe) f.get(null);</span><br><span class="line">        &#125; catch (NoSuchFieldException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125; catch (IllegalAccessException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">        return unsafe;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>使用大数组。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">long SUPER_SIZE = (long) Integer.MAX_VALUE * 2;</span><br><span class="line">SuperArray array = new SuperArray(SUPER_SIZE);</span><br><span class="line">System.out.println(&quot;Array size:&quot; + array.size()); //print 4294967294</span><br><span class="line">int sum = 0;</span><br><span class="line">for (int i = 0; i &lt; 100; i++) &#123;</span><br><span class="line">     array.set((long) Integer.MAX_VALUE + i, (byte) 3);</span><br><span class="line">     sum += array.get((long) Integer.MAX_VALUE + i);</span><br><span class="line">&#125;</span><br><span class="line">System.out.println(&quot;Sum of 100 elements:&quot; + sum);  //print 300</span><br></pre></td></tr></table></figure>
+<h3 id="并发应用"><a href="#并发应用" class="headerlink" title="并发应用"></a>并发应用</h3><p>compareAndSwap 方法是原子的，并且可用来实现高性能的、无锁的数据结构。</p>
+<p>创建一个 Java 类。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">public class CASCounter &#123;</span><br><span class="line"></span><br><span class="line">    private volatile long counter = 0;</span><br><span class="line">    private Unsafe unsafe;</span><br><span class="line">    private long offset;</span><br><span class="line"></span><br><span class="line">    public CASCounter() throws Exception &#123;</span><br><span class="line">        unsafe = getUnsafe();</span><br><span class="line">        offset = unsafe.objectFieldOffset(CASCounter.class.getDeclaredField(&quot;counter&quot;));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public void increment() &#123;</span><br><span class="line">        long before = counter;</span><br><span class="line">        while (!unsafe.compareAndSwapLong(this, offset, before, before + 1)) &#123;</span><br><span class="line">            before = counter;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public long getCounter() &#123;</span><br><span class="line">        return counter;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    private static Unsafe getUnsafe() &#123;</span><br><span class="line">        Field f = null;</span><br><span class="line">        Unsafe unsafe = null;</span><br><span class="line">        try &#123;</span><br><span class="line">            f = Unsafe.class.getDeclaredField(&quot;theUnsafe&quot;);</span><br><span class="line">            f.setAccessible(true);</span><br><span class="line">            unsafe = (Unsafe) f.get(null);</span><br><span class="line">        &#125; catch (NoSuchFieldException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125; catch (IllegalAccessException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">        return unsafe;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>使用无锁的数据结构。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">public static void main(String[] args) &#123;</span><br><span class="line">        final TestB b = new TestB();</span><br><span class="line">        Thread threadA = new Thread(new Runnable() &#123;</span><br><span class="line">            @Override public void run() &#123;</span><br><span class="line">                b.counter.increment();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">        Thread threadB = new Thread(new Runnable() &#123;</span><br><span class="line">            @Override public void run() &#123;</span><br><span class="line">                b.counter.increment();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">        Thread threadC = new Thread(new Runnable() &#123;</span><br><span class="line">            @Override public void run() &#123;</span><br><span class="line">                b.counter.increment();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">        threadA.start();</span><br><span class="line">        threadB.start();</span><br><span class="line">        threadC.start();</span><br><span class="line">        try &#123;</span><br><span class="line">            TimeUnit.SECONDS.sleep(1);</span><br><span class="line">        &#125; catch (InterruptedException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">        System.out.println(b.counter.getCounter()); //print 3</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">private static class TestB &#123;</span><br><span class="line">        private CASCounter counter;</span><br><span class="line"></span><br><span class="line">        public TestB() &#123;</span><br><span class="line">            try &#123;</span><br><span class="line">                counter = new CASCounter();</span><br><span class="line">            &#125; catch (Exception e) &#123;</span><br><span class="line">                e.printStackTrace();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="挂起与恢复"><a href="#挂起与恢复" class="headerlink" title="挂起与恢复"></a>挂起与恢复</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">public native void unpark(Thread jthread);  </span><br><span class="line">public native void park(boolean isAbsolute, long time); // isAbsolute 参数是指明时间是绝对的，还是相对的。</span><br></pre></td></tr></table></figure>
+<p>将一个线程进行挂起是通过 park 方法实现，调用 park 后，线程将一直阻塞直到超时或者中断等条件出现。</p>
+<p>unpark 可以终止一个挂起的线程，使其恢复正常。</p>
+<p>整个并发框架中对线程的挂起操作被封装在 LockSupport 类中，LockSupport 类中有各种版本 pack 方法，但最终都调用的 Unsafe.park() 方法。</p>
+<p>unpark 函数为线程提供 “ 许可（permit）”，线程调用 park 函数则等待 “ 许可 “。</p>
+<p>这个有点像信号量，但是这个 “ 许可 “ 不能叠加，是一次性的。</p>
+<p>比如线程 B 连续调用了三次 unpark 函数，当线程 A 调用 park 函数就使用掉这个 “ 许可 “，如果线程 A 再次调用 park，则进入等待状态。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">Thread currThread = Thread.currentThread();</span><br><span class="line">getUnsafe().unpark(currThread);</span><br><span class="line">getUnsafe().unpark(currThread);</span><br><span class="line">getUnsafe().unpark(currThread);</span><br><span class="line"></span><br><span class="line">getUnsafe().park(false, 0);</span><br><span class="line">getUnsafe().park(false, 0);</span><br><span class="line">System.out.println(&quot;execute success&quot;); // 线程挂起，不会打印。</span><br></pre></td></tr></table></figure>
+<p>unpark 函数可以先于 park 调用（但最好别这样做），比如线程 B 调用 unpark 函数，给线程 A 发了一个 “ 许可 “，那么当线程 A 调用 park 时，发现已经有 “ 许可 “，会马上再继续运行。</p>
+<p>park 遇到线程终止时，会直接返回（不同于 Thread.sleep，Thread.sleep 遇到 thread.interrupt() 会抛异常）。</p>
+<p>unpark 无法恢复处于 sleep 中的线程，只能与 park 配对使用，因为 unpark 发放的许可只有 park 能监听到。</p>
+<p>因为 park 的特性，可以不用担心 park 的时序问题。</p>
+<p>park / unpark 模型真正解耦了线程之间的同步，线程之间不再需要一个 Object 或者其它变量来存储状态，不再需要关心对方的状态。</p>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><p><a href="https://www.jianshu.com/p/2e5b92d0962e" target="_blank" rel="noopener">https://www.jianshu.com/p/2e5b92d0962e</a><br><a href="https://www.jianshu.com/p/96ccc5dbd8c5" target="_blank" rel="noopener">https://www.jianshu.com/p/96ccc5dbd8c5</a></p>
+
+      
+    </div>
+    
+    
+    
+	
+	<div>
+	
+		<div>
+    
+        <div style="text-align:center;color: #ccc;font-size:14px;">-------------本文结束<i class="fa fa-paw"></i>感谢您的阅读-------------</div>
+    
+</div>
+	
+	</div>
+
+    
+      <div>
+        <div id="wechat_subscriber" style="display: block; padding: 10px 0; margin: 20px auto; width: 100%; text-align: center">
+    <img id="wechat_subscriber_qcode" src="/uploads/wechat-qcode.jpg" alt="Ruan Shubin wechat" style="width: 200px; max-width: 100%;">
+    <div>欢迎您扫一扫上面的二维码，关注我的微信公众号！</div>
+</div>
+
+      </div>
+    
+
+    
+
+    
+      <div>
+        <ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者：</strong>
+    Ruan Shubin
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="http://ruanshubin.top/2019/09/25/Unsafe类详解/" title="Unsafe类详解">http://ruanshubin.top/2019/09/25/Unsafe类详解/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>
+    本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/" rel="external nofollow" target="_blank">CC BY-NC-SA 3.0</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+
+      </div>
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Java/" rel="tag"><i class="fa fa-tag"></i> Java</a>
+          
+            <a href="/tags/并发/" rel="tag"><i class="fa fa-tag"></i> 并发</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/09/16/Flink的分布式缓存/" rel="next" title="Flink的分布式缓存">
+                <i class="fa fa-chevron-left"></i> Flink的分布式缓存
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+        <!-- JiaThis Button BEGIN -->
+<div class="jiathis_style">
+<span class="jiathis_txt">分享到：</span>
+<a class="jiathis_button_weixin">微信</a>
+<a class="jiathis_button_qzone">QQ空间</a>
+<a class="jiathis_button_tsina">新浪微博</a>
+<a class="jiathis_button_zhihu">知乎</a>
+<a class="jiathis_button_share">一键分享</a>
+
+<a href="http://www.jiathis.com/share?uid=2140465" class="jiathis jiathis_txt jiathis_separator jtico jtico_jiathis" target="_blank">更多</a>
+<a class="jiathis_counter_style"></a>
+</div>
+<script type="text/javascript">
+var jiathis_config={
+  data_track_clickback:true,
+  summary:"",
+  shortUrl:false,
+  hideMore:false
+}
+</script>
+<script type="text/javascript" src="http://v3.jiathis.com/code/jia.js?uid=" charset="utf-8"></script>
+<!-- JiaThis Button END -->
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div class="comments" id="comments">
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8zMzc1NC8xMDMwOA"></div>
+    </div>
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/avatar.gif" alt="Ruan Shubin">
+            
+              <p class="site-author-name" itemprop="name">Ruan Shubin</p>
+              <p class="site-description motion-element" itemprop="description">一万年太久，只争朝夕！</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives">
+              
+                  <span class="site-state-item-count">24</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">8</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">20</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+            <div class="feed-link motion-element">
+              <a href="/atom.xml" rel="alternate">
+                <i class="fa fa-rss"></i>
+                RSS
+              </a>
+            </div>
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/Ruanshubin" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://weibo.com/u/2487162561" target="_blank" title="Weibo">
+                      
+                        <i class="fa fa-fw fa-weibo"></i>Weibo</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://blog.csdn.net/wenwu_both" target="_blank" title="CSDN">
+                      
+                        <i class="fa fa-fw fa-book"></i>CSDN</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="http://tcrl.zju.edu.cn/" target="_blank" title="Lab">
+                      
+                        <i class="fa fa-fw fa-users"></i>Lab</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#获取实例"><span class="nav-number">1.</span> <span class="nav-text">获取实例</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#常用方法"><span class="nav-number">2.</span> <span class="nav-text">常用方法</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Classes-Objects"><span class="nav-number">2.1.</span> <span class="nav-text">Classes/Objects</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#数组相关"><span class="nav-number">2.2.</span> <span class="nav-text">数组相关</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#CAS-相关"><span class="nav-number">2.3.</span> <span class="nav-text">CAS 相关</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#线程调度相关"><span class="nav-number">2.4.</span> <span class="nav-text">线程调度相关</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#volatile-相关读写"><span class="nav-number">2.5.</span> <span class="nav-text">volatile 相关读写</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#内存屏障相关"><span class="nav-number">2.6.</span> <span class="nav-text">内存屏障相关</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#内存管理（非堆内存）"><span class="nav-number">2.7.</span> <span class="nav-text">内存管理（非堆内存）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#系统相关"><span class="nav-number">2.8.</span> <span class="nav-text">系统相关</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#其他"><span class="nav-number">2.9.</span> <span class="nav-text">其他</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Unsafe-类的使用场景"><span class="nav-number">3.</span> <span class="nav-text">Unsafe 类的使用场景</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#避免初始化"><span class="nav-number">3.1.</span> <span class="nav-text">避免初始化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#内存修改"><span class="nav-number">3.2.</span> <span class="nav-text">内存修改</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#动态类"><span class="nav-number">3.3.</span> <span class="nav-text">动态类</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#大数组"><span class="nav-number">3.4.</span> <span class="nav-text">大数组</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#并发应用"><span class="nav-number">3.5.</span> <span class="nav-text">并发应用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#挂起与恢复"><span class="nav-number">3.6.</span> <span class="nav-text">挂起与恢复</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#参考资料"><span class="nav-number">4.</span> <span class="nav-text">参考资料</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Ruan Shubin</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+      <span class="post-meta-item-text">全站总字数&#58;</span>
+    
+    <span title="全站总字数">62.3k</span>
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Pisces</a> v5.1.4</div>
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+
+  
+</div>
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  <script type="text/javascript">
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url);
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x" /></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x" /></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+  
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdn.bootcss.com/mathjax/2.7.1/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+
+  
+
+  
+
+</body>
+</html>
