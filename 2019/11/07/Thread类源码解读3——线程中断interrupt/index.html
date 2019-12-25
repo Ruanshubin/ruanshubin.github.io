@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=5.1.4">
+
+
+
+
+
+
+
+  <meta name="keywords" content="Java,并发,">
+
+
+
+
+
+  <link rel="alternate" href="/atom.xml" title="阮树斌 | 技术改变生活" type="application/atom+xml">
+
+
+
+
+
+
+<meta name="description" content="线程中断是一个很重要的概念，通常，取消一个任务的执行，最好的，同时也是最合理的方法，就是通过中断。 本篇我们主要还是通过源码分析来看看中断的概念。 本文的源码基于JDK1.8 Interrupt status &amp;amp; InterruptedExceptionjava线程的中断机制为我们提供了一个契机，使被中断的线程能够有机会从当前的任务中跳脱出来。而中断机制的最核心的两个概念就是interru">
+<meta name="keywords" content="Java,并发">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Thread类源码解读3--线程中断interrupt">
+<meta property="og:url" content="http://ruanshubin.top/2019/11/07/Thread类源码解读3——线程中断interrupt/index.html">
+<meta property="og:site_name" content="阮树斌 | 技术改变生活">
+<meta property="og:description" content="线程中断是一个很重要的概念，通常，取消一个任务的执行，最好的，同时也是最合理的方法，就是通过中断。 本篇我们主要还是通过源码分析来看看中断的概念。 本文的源码基于JDK1.8 Interrupt status &amp;amp; InterruptedExceptionjava线程的中断机制为我们提供了一个契机，使被中断的线程能够有机会从当前的任务中跳脱出来。而中断机制的最核心的两个概念就是interru">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2019-12-25T05:49:29.840Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Thread类源码解读3--线程中断interrupt">
+<meta name="twitter:description" content="线程中断是一个很重要的概念，通常，取消一个任务的执行，最好的，同时也是最合理的方法，就是通过中断。 本篇我们主要还是通过源码分析来看看中断的概念。 本文的源码基于JDK1.8 Interrupt status &amp;amp; InterruptedExceptionjava线程的中断机制为我们提供了一个契机，使被中断的线程能够有机会从当前的任务中跳脱出来。而中断机制的最核心的两个概念就是interru">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://ruanshubin.top/2019/11/07/Thread类源码解读3——线程中断interrupt/">
+
+
+
+
+
+  <title>Thread类源码解读3--线程中断interrupt | 阮树斌 | 技术改变生活</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+
+   <canvas class="fireworks" style="position: fixed;left: 0;top: 0;z-index: 1; pointer-events: none;"></canvas> 
+   <script type="text/javascript" src="//cdn.bootcss.com/animejs/2.2.0/anime.min.js"></script> 
+   <script type="text/javascript" src="/js/src/fireworks.js"></script>
+
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+	<a href="https://github.com/Ruanshubin" class="github-corner" aria-label="View source on Github">
+	<svg width="80" height="80" viewbox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true">
+	<path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"/>
+	<path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"/>
+	<path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"/>
+	</svg>
+	</a>
+	<style>
+	.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}
+	</style>
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">阮树斌 | 技术改变生活</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">交通 | 数据 | 算法 <br> Java | Python | Scala | Matlab | GIS</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-首页">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-分类">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br>
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-归档">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-标签">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-关于">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br>
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+	
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://ruanshubin.top/2019/11/07/Thread类源码解读3——线程中断interrupt/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Ruan Shubin">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="阮树斌 | 技术改变生活">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Thread类源码解读3--线程中断interrupt</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-11-07T21:30:00+08:00">
+                2019-11-07
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/并发编程/" itemprop="url" rel="index">
+                    <span itemprop="name">并发编程</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+            <div class="post-wordcount">
+              
+                
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-file-word-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">字数统计&#58;</span>
+                
+                <span title="字数统计">
+                  4.2k 字
+                </span>
+              
+
+              
+                <span class="post-meta-divider">|</span>
+              
+
+              
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-clock-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">阅读时长 &asymp;</span>
+                
+                <span title="阅读时长">
+                  17 分钟
+                </span>
+              
+            </div>
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>线程中断是一个很重要的概念，通常，取消一个任务的执行，最好的，同时也是最合理的方法，就是通过中断。</p>
+<p>本篇我们主要还是通过源码分析来看看中断的概念。</p>
+<p>本文的源码基于JDK1.8</p>
+<h2 id="Interrupt-status-amp-InterruptedException"><a href="#Interrupt-status-amp-InterruptedException" class="headerlink" title="Interrupt status &amp; InterruptedException"></a>Interrupt status &amp; InterruptedException</h2><p>java线程的中断机制为我们提供了一个契机，使被中断的线程能够有机会从当前的任务中跳脱出来。而中断机制的最核心的两个概念就是interrupt status 和 InterruptedException。</p>
+<p>java中对于中断的大部分操作无外乎以下两点:</p>
+<ul>
+<li>设置或者清除中断标志位</li>
+<li>抛出InterruptedException</li>
+</ul>
+<h3 id="interrupt-status"><a href="#interrupt-status" class="headerlink" title="interrupt status"></a>interrupt status</h3><p>在java中，每一个线程都有一个中断标志位，表征了当前线程是否处于被中断状态，我们可以把这个标识位理解成一个boolean类型的变量，当我们中断一个线程时，将该标识位设为true，当我们清除中断状态时，将其设置为false, 其伪代码如下:</p>
+<p>(注意，本文的伪代码部分是我个人所写，并不权威，只是帮助我自己理解写的)</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">// 注意，这是伪代码！！！</span><br><span class="line">// 注意，这是伪代码！！！</span><br><span class="line">// 注意，这是伪代码！！！</span><br><span class="line">public class Thread implements Runnable &#123;</span><br><span class="line">    private boolean interruptFlag; // 中断标志位</span><br><span class="line">    </span><br><span class="line">    public boolean getInterruptFlag() &#123;</span><br><span class="line">        return this.interruptFlag;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    public void setInterruptFlag(boolean flag) &#123;</span><br><span class="line">        this.interruptFlag = flag;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>然而，<strong>在Thread线程类里面，并没有类似中断标志位的属性，但是提供了获取中断标志位的接口:</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> * Tests if some Thread has been interrupted.  The interrupted state</span><br><span class="line"> * is reset or not based on the value of ClearInterrupted that is</span><br><span class="line"> * passed.</span><br><span class="line"> */</span><br><span class="line">private native boolean isInterrupted(boolean ClearInterrupted);</span><br></pre></td></tr></table></figure>
+<p>这是一个native方法，同时也是一个private方法，该方法除了能够返回当前线程的中断状态，还能根据ClearInterrupted参数来决定要不要重置中断标志位(reset操作相当于上面的interruptFlag = false)。</p>
+<p>Thread类提供了两个public方法来使用该native方法:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">public boolean isInterrupted() &#123;</span><br><span class="line">    return isInterrupted(false);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public static boolean interrupted() &#123;</span><br><span class="line">    return currentThread().isInterrupted(true);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>其中isInterrupted调用了isInterrupted(false), ClearInterrupted参数为false, 说明它仅仅返回线程实例的中断状态，但是不会对现有的中断状态做任何改变，伪代码可以是:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">// 注意，这是伪代码！！！</span><br><span class="line">// 注意，这是伪代码！！！</span><br><span class="line">// 注意，这是伪代码！！！</span><br><span class="line">public boolean isInterrupted() &#123;</span><br><span class="line">    return interruptFlag; //直接返回Thread实例的中断状态</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>而interrupted是一个<strong>静态方法</strong>，所以它可以由Thread类直接调用，自然就是作用于<strong>当前正在执行的线程</strong>，所以函数内部使用了currentThread()方法，与isInterrupted()方法不同的是，它的ClearInterrupted参数为true，在返回线程中断状态的同时，重置了中断标识位，伪代码可以是:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">// 注意，这是伪代码！！！</span><br><span class="line">// 注意，这是伪代码！！！</span><br><span class="line">// 注意，这是伪代码！！！</span><br><span class="line">public static boolean interrupted() &#123;</span><br><span class="line">    Thread current = Thread.currentThread(); // 获取当前正在执行的线程</span><br><span class="line">    boolean interruptFlag = current.getInterruptFlag(); // 获取线程的中断状态</span><br><span class="line">    current.setInterruptFlag(false); // 清除线程的中断状态</span><br><span class="line">    return interruptFlag; //返回线程的中断状态</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可见，isInterrupted() 和 interrupted() 方法只涉及到中断状态的查询，最多是多加一步重置中断状态，并不牵涉到InterruptedException。</p>
+<p>不过值得一提的是，在我们能使用到的public方法中，<strong>interrupted()是我们清除中断的唯一方法</strong>。</p>
+<h3 id="InterruptedException"><a href="#InterruptedException" class="headerlink" title="InterruptedException"></a>InterruptedException</h3><p>我们直接来看的源码:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> * Thrown when a thread is waiting, sleeping, or otherwise occupied,</span><br><span class="line"> * and the thread is interrupted, either before or during the activity.</span><br><span class="line"> * Occasionally a method may wish to test whether the current</span><br><span class="line"> * thread has been interrupted, and if so, to immediately throw</span><br><span class="line"> * this exception.  The following code can be used to achieve</span><br><span class="line"> * this effect:</span><br><span class="line"> * &lt;pre&gt;</span><br><span class="line"> *  if (Thread.interrupted())  // Clears interrupted status!</span><br><span class="line"> *      throw new InterruptedException();</span><br><span class="line"> * &lt;/pre&gt;</span><br><span class="line"> *</span><br><span class="line"> * @author  Frank Yellin</span><br><span class="line"> * @see     java.lang.Object#wait()</span><br><span class="line"> * @see     java.lang.Object#wait(long)</span><br><span class="line"> * @see     java.lang.Object#wait(long, int)</span><br><span class="line"> * @see     java.lang.Thread#sleep(long)</span><br><span class="line"> * @see     java.lang.Thread#interrupt()</span><br><span class="line"> * @see     java.lang.Thread#interrupted()</span><br><span class="line"> * @since   JDK1.0</span><br><span class="line"> */</span><br><span class="line">public class InterruptedException extends Exception &#123;</span><br><span class="line">    private static final long serialVersionUID = 6700697376100628473L;</span><br><span class="line"></span><br><span class="line">    /**</span><br><span class="line">     * Constructs an &lt;code&gt;InterruptedException&lt;/code&gt; with no detail  message.</span><br><span class="line">     */</span><br><span class="line">    public InterruptedException() &#123;</span><br><span class="line">        super();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    /**</span><br><span class="line">     * Constructs an &lt;code&gt;InterruptedException&lt;/code&gt; with the</span><br><span class="line">     * specified detail message.</span><br><span class="line">     *</span><br><span class="line">     * @param   s   the detail message.</span><br><span class="line">     */</span><br><span class="line">    public InterruptedException(String s) &#123;</span><br><span class="line">        super(s);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上面的注释是说，在线程处于“waiting, sleeping”甚至是正在运行的过程中，如果被中断了，就可以抛出该异常，我们先来回顾一下我们前面遇到过的抛出InterruptedException异常的例子:</p>
+<p>(1) wait(long timeout)方法中的InterruptedException</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">/* </span><br><span class="line"> *</span><br><span class="line"> * @param      timeout   the maximum time to wait in milliseconds.</span><br><span class="line"> * @throws  IllegalArgumentException      if the value of timeout is</span><br><span class="line"> *               negative.</span><br><span class="line"> * @throws  IllegalMonitorStateException  if the current thread is not</span><br><span class="line"> *               the owner of the object&apos;s monitor.</span><br><span class="line"> * @throws  InterruptedException if any thread interrupted the</span><br><span class="line"> *             current thread before or while the current thread</span><br><span class="line"> *             was waiting for a notification.  The &lt;i&gt;interrupted</span><br><span class="line"> *             status&lt;/i&gt; of the current thread is cleared when</span><br><span class="line"> *             this exception is thrown.</span><br><span class="line"> * @see        java.lang.Object#notify()</span><br><span class="line"> * @see        java.lang.Object#notifyAll()</span><br><span class="line"> */</span><br><span class="line">public final native void wait(long timeout) throws InterruptedException;</span><br></pre></td></tr></table></figure>
+<p>该方法的注释中提到，如果在有别的线程在当前线程进入waiting状态之前或者已经进入waiting状态之后中断了当前线程，该方法就会抛出InterruptedException，同时，异常抛出后，当前线程的中断状态也会被清除。</p>
+<p>(2) sleep(long millis)方法中的InterruptedException</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">/* @param  millis</span><br><span class="line"> *         the length of time to sleep in milliseconds</span><br><span class="line"> *</span><br><span class="line"> * @throws  IllegalArgumentException</span><br><span class="line"> *          if the value of &#123;@code millis&#125; is negative</span><br><span class="line"> *</span><br><span class="line"> * @throws  InterruptedException</span><br><span class="line"> *          if any thread has interrupted the current thread. The</span><br><span class="line"> *          &lt;i&gt;interrupted status&lt;/i&gt; of the current thread is</span><br><span class="line"> *          cleared when this exception is thrown.</span><br><span class="line"> */</span><br><span class="line">public static native void sleep(long millis) throws InterruptedException;</span><br></pre></td></tr></table></figure>
+<p>上面的wait方法一致，如果当前线程被中断了，sleep方法会抛出InterruptedException，并且清除中断状态。</p>
+<p>如果有其他方法直接或间接的调用了这两个方法，那他们自然也会在线程被中断的时候抛出InterruptedException，并且清除中断状态。例如:</p>
+<ul>
+<li>wait()</li>
+<li>wait(long timeout, int nanos)</li>
+<li>sleep(long millis, int nanos)</li>
+<li>join()</li>
+<li>join(long millis)</li>
+<li>join(long millis, int nanos)</li>
+</ul>
+<p>这里值得注意的是，虽然这些方法会抛出InterruptedException，但是并不会终止当前线程的执行，当前线程可以选择忽略这个异常。</p>
+<p>也就是说，无论是设置interrupt status 还是抛出InterruptedException，它们都是给当前线程的建议，当前线程可以选择采纳或者不采纳，它们并不会影响当前线程的执行。</p>
+<p>至于在收到这些中断的建议后，当前线程要怎么处理，也完全取决于当前线程。 </p>
+<h2 id="interrupt"><a href="#interrupt" class="headerlink" title="interrupt"></a>interrupt</h2><p>上面我们说了怎么检查(以及清除)一个线程的中断状态，提到当一个线程被中断后，有一些方法会抛出InterruptedException。</p>
+<p>下面我们就来看看怎么中断一个线程。</p>
+<p>要中断一个线程，只需调用该线程的interrupt方法，其源码如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> * Interrupts this thread.</span><br><span class="line"> *</span><br><span class="line"> * &lt;p&gt; Unless the current thread is interrupting itself, which is</span><br><span class="line"> * always permitted, the &#123;@link #checkAccess() checkAccess&#125; method</span><br><span class="line"> * of this thread is invoked, which may cause a &#123;@link</span><br><span class="line"> * SecurityException&#125; to be thrown.</span><br><span class="line"> *</span><br><span class="line"> * &lt;p&gt; If this thread is blocked in an invocation of the &#123;@link</span><br><span class="line"> * Object#wait() wait()&#125;, &#123;@link Object#wait(long) wait(long)&#125;, or &#123;@link</span><br><span class="line"> * Object#wait(long, int) wait(long, int)&#125; methods of the &#123;@link Object&#125;</span><br><span class="line"> * class, or of the &#123;@link #join()&#125;, &#123;@link #join(long)&#125;, &#123;@link</span><br><span class="line"> * #join(long, int)&#125;, &#123;@link #sleep(long)&#125;, or &#123;@link #sleep(long, int)&#125;,</span><br><span class="line"> * methods of this class, then its interrupt status will be cleared and it</span><br><span class="line"> * will receive an &#123;@link InterruptedException&#125;.</span><br><span class="line"> *</span><br><span class="line"> * &lt;p&gt; If this thread is blocked in an I/O operation upon an &#123;@link</span><br><span class="line"> * java.nio.channels.InterruptibleChannel InterruptibleChannel&#125;</span><br><span class="line"> * then the channel will be closed, the thread&apos;s interrupt</span><br><span class="line"> * status will be set, and the thread will receive a &#123;@link</span><br><span class="line"> * java.nio.channels.ClosedByInterruptException&#125;.</span><br><span class="line"> *</span><br><span class="line"> * &lt;p&gt; If this thread is blocked in a &#123;@link java.nio.channels.Selector&#125;</span><br><span class="line"> * then the thread&apos;s interrupt status will be set and it will return</span><br><span class="line"> * immediately from the selection operation, possibly with a non-zero</span><br><span class="line"> * value, just as if the selector&apos;s &#123;@link</span><br><span class="line"> * java.nio.channels.Selector#wakeup wakeup&#125; method were invoked.</span><br><span class="line"> *</span><br><span class="line"> * &lt;p&gt; If none of the previous conditions hold then this thread&apos;s interrupt</span><br><span class="line"> * status will be set. &lt;/p&gt;</span><br><span class="line"> *</span><br><span class="line"> * &lt;p&gt; Interrupting a thread that is not alive need not have any effect.</span><br><span class="line"> *</span><br><span class="line"> * @throws  SecurityException</span><br><span class="line"> *          if the current thread cannot modify this thread</span><br><span class="line"> *</span><br><span class="line"> * @revised 6.0</span><br><span class="line"> * @spec JSR-51</span><br><span class="line"> */</span><br><span class="line">public void interrupt() &#123;</span><br><span class="line">    if (this != Thread.currentThread())</span><br><span class="line">        checkAccess();</span><br><span class="line"></span><br><span class="line">    synchronized (blockerLock) &#123;</span><br><span class="line">        Interruptible b = blocker;</span><br><span class="line">        if (b != null) &#123;</span><br><span class="line">            interrupt0();           // Just to set the interrupt flag</span><br><span class="line">            b.interrupt(this);</span><br><span class="line">            return;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    interrupt0();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上面的注释很长，我们一段一段来看:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> * Interrupts this thread.</span><br><span class="line"> *</span><br><span class="line"> * &lt;p&gt; Unless the current thread is interrupting itself, which is</span><br><span class="line"> * always permitted, the &#123;@link #checkAccess() checkAccess&#125; method</span><br><span class="line"> * of this thread is invoked, which may cause a &#123;@link</span><br><span class="line"> * SecurityException&#125; to be thrown.</span><br><span class="line"> ...</span><br><span class="line"> */</span><br></pre></td></tr></table></figure>
+<p>上面这段首先说明了这个函数的目的是中断这个线程，这个this thread，当然指的就是该方法所属的线程对象所代表的线程。</p>
+<p>接着说明了，一个线程总是被允许中断自己，但是我们如果想要在一个线程中中断另一个线程的执行，就需要先通过checkAccess()检查权限。这有可能抛出SecurityException异常, 这段话用代码体现为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">if (this != Thread.currentThread())</span><br><span class="line">    checkAccess();</span><br></pre></td></tr></table></figure>
+<p>我们接着往下看:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">/*</span><br><span class="line"> ...</span><br><span class="line"> * &lt;p&gt; If this thread is blocked in an invocation of the &#123;@link</span><br><span class="line"> * Object#wait() wait()&#125;, &#123;@link Object#wait(long) wait(long)&#125;, or &#123;@link</span><br><span class="line"> * Object#wait(long, int) wait(long, int)&#125; methods of the &#123;@link Object&#125;</span><br><span class="line"> * class, or of the &#123;@link #join()&#125;, &#123;@link #join(long)&#125;, &#123;@link</span><br><span class="line"> * #join(long, int)&#125;, &#123;@link #sleep(long)&#125;, or &#123;@link #sleep(long, int)&#125;,</span><br><span class="line"> * methods of this class, then its interrupt status will be cleared and it</span><br><span class="line"> * will receive an &#123;@link InterruptedException&#125;.</span><br><span class="line"> ...</span><br><span class="line"> */</span><br></pre></td></tr></table></figure>
+<p>上面这段是说，如果线程因为以下方法的调用而处于阻塞中，那么(调用了interrupt方法之后)，线程的中断标志会被清除，并且收到一个InterruptedException:</p>
+<ul>
+<li>Object的方法<ul>
+<li>wait()</li>
+<li>wait(long)</li>
+<li>wait(long, int)</li>
+</ul>
+</li>
+<li>Thread的方法<ul>
+<li>join()</li>
+<li>join(long)</li>
+<li>join(long, int)</li>
+<li>sleep(long)</li>
+<li>sleep(long, int)</li>
+</ul>
+</li>
+</ul>
+<p>关于这一点，我们上面在分析InterruptedException的时候已经分析过了。</p>
+<p>这里插一句，由于上面这些方法在抛出InterruptedException异常后，会<strong>同时清除中断标识位</strong>，因此当我们此时不想或者无法传递InterruptedException异常，也不对该异常做任何处理时，我们最好通过再次调用interrupt来恢复中断的状态，以供上层调用者处理。</p>
+<p>接下来的两段注释是关于NIO的，我们暂时不看，直接看最后两段:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">/*</span><br><span class="line"> ...</span><br><span class="line"> * &lt;p&gt; If none of the previous conditions hold then this thread&apos;s interrupt</span><br><span class="line"> * status will be set. &lt;/p&gt;</span><br><span class="line"> *</span><br><span class="line"> * &lt;p&gt; Interrupting a thread that is not alive need not have any effect.</span><br><span class="line"> */</span><br></pre></td></tr></table></figure>
+<p>这段话是说:</p>
+<ul>
+<li>如果线程没有因为上面的函数调用而进入阻塞状态的话，那么中断这个线程仅仅会设置它的中断标志位(而不会抛出InterruptedException)</li>
+<li>中断一个已经终止的线程不会有任何影响。</li>
+</ul>
+<p>注释看完了之后我们再来看代码部分，其实代码部分很简单，中间那段同步代码块是和NIO有关的，我们可以暂时不管，整个方法的核心调用就是interrupt0()方法，而它是一个native方法:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">private native void interrupt0();</span><br></pre></td></tr></table></figure>
+<p>这个方法所做的事情很简单:</p>
+<blockquote>
+<p>Just to set the interrupt flag</p>
+</blockquote>
+<p>所以，至此我们明白了，<strong>所谓“中断一个线程”，其实并不是让一个线程停止运行，仅仅是将线程的中断标志设为true, 或者在某些特定情况下抛出一个InterruptedException，它并不会直接将一个线程停掉，在被中断的线程的角度看来，仅仅是自己的中断标志位被设为true了，或者自己所执行的代码中抛出了一个InterruptedException异常，仅此而已。</strong></p>
+<h2 id="终止一个线程"><a href="#终止一个线程" class="headerlink" title="终止一个线程"></a>终止一个线程</h2><p>既然上面我们提到了，中断一个线程并不会使得该线程停止执行，那么我们该怎样终止一个线程的执行呢。早期的java中提供了stop()方法来停止一个线程，但是这个方法是不安全的，所以已经被废弃了。现在终止一个线程，基本上只能靠“曲线救国”式的中断来实现。</p>
+<h3 id="终止处于阻塞状态的线程"><a href="#终止处于阻塞状态的线程" class="headerlink" title="终止处于阻塞状态的线程"></a>终止处于阻塞状态的线程</h3><p>前面我们说过，当一个线程因为调用wait,sleep,join方法而进入阻塞状态后，若在这时中断这个线程，则这些方法将会抛出InterruptedException异常，我们可以利用这个异常，使线程跳出阻塞状态，从而终止线程。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">public void run() &#123;</span><br><span class="line">    while(true) &#123;</span><br><span class="line">        try &#123;</span><br><span class="line">            // do some task</span><br><span class="line">            // blocked by calling wait/sleep/join</span><br><span class="line">        &#125; catch (InterruptedException ie) &#123;  </span><br><span class="line">            // 如果该线程被中断，则会抛出InterruptedException异常</span><br><span class="line">            // 我们通过捕获这个异常，使得线程从block状态退出</span><br><span class="line">            break; // 这里使用break, 可以使我们在线程中断后退出死循环，从而终止线程。</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="终止处于运行状态的线程"><a href="#终止处于运行状态的线程" class="headerlink" title="终止处于运行状态的线程"></a>终止处于运行状态的线程</h3><p>与中断一个处于阻塞状态所不同的是，中断一个处于运行状态的线程只会将该线程的中断标志位设为true, 而并不会抛出InterruptedException异常，为了能在运行过程中感知到线程已经被中断了，我们只能通过不断地检查中断标志位来实现:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">public void run() &#123;</span><br><span class="line">    while (!isInterrupted()) &#123;</span><br><span class="line">        // do some task...</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这里，我们每次循环都会先检查中断标志位，只要当前线程被中断了，isInterrupted()方法就会返回true，从而终止循环。</p>
+<h3 id="终止一个Alive的线程"><a href="#终止一个Alive的线程" class="headerlink" title="终止一个Alive的线程"></a>终止一个Alive的线程</h3><p>上面我们分别介绍了怎样终止一个处于阻塞状态或运行状态的线程，如果我们将这两种方法结合起来，那么就可以同时应对这两种状况，从而能够终止任意一个存活的线程:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">public void run() &#123;</span><br><span class="line">    try &#123;</span><br><span class="line">        // 1. isInterrupted() 用于终止一个正在运行的线程。</span><br><span class="line">        while (!isInterrupted()) &#123;</span><br><span class="line">            // 执行任务...</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; catch (InterruptedException ie) &#123;  </span><br><span class="line">        // 2. InterruptedException异常用于终止一个处于阻塞状态的线程</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>不过使用这两者的组合一定要注意，wait,sleep,join等方法抛出InterruptedException有一个副作用: 清除当前的中断标志位，所以不要在异常抛出后不做任何处理，而寄望于用isInterrupted()方法来判断，因为中标志位已经被重置了，所以下面这种写法是不对的:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">public void run() &#123;</span><br><span class="line">    //isInterrupted() 用于终止一个正在运行的线程。</span><br><span class="line">    while (!isInterrupted()) &#123;</span><br><span class="line">        try &#123;</span><br><span class="line">                // 执行任务...</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; catch (InterruptedException ie) &#123;  </span><br><span class="line">            // 在这里不做任何处理，仅仅依靠isInterrupted检测异常</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这个方法中，在catch块中我们检测到异常后没有使用break方法跳出循环，而此时中断状态已经被重置，当我们再去调用isInterrupted，依旧会返回false, 故线程仍然会在while循环中执行，无法被中断。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>Java没有提供一种安全直接的方法来停止某个线程，但是提供了中断机制。对于被中断的线程，中断只是一个建议，至于收到这个建议后线程要采取什么措施，完全由线程自己决定。</p>
+<p>中断机制的核心在于中断状态和InterruptedException异常</p>
+<p>中断状态:</p>
+<ul>
+<li>设置一个中断状态: Thread#interrupt</li>
+<li>清除一个中断状态: Thread.interrupted</li>
+</ul>
+<p>Thread.interrupted方法同时会返回线程原来的中断的状态。<br>如果仅仅想查看线程当前的中断状态而不清除原来的状态，则应该使用Thread#isInterrupted。</p>
+<p>某些阻塞方法在抛出InterruptedException异常后，会同时清除中断状态。若不能对该异常做出处理也无法向上层抛出，则应该通过再次调用interrupt方法恢复中断状态，以供上层处理，通常情况下我们都不应该屏蔽中断请求。</p>
+<p>中断异常:</p>
+<p>中断异常一般是线程被中断后，在一些block类型的方法(如wait,sleep,join)中抛出。</p>
+<p>我们可以使用Thread#interrupt中断一个线程，被中断的线程所受的影响为以下两种之一:</p>
+<ul>
+<li>若被中断前，该线程处于非阻塞状态，那么该线程的中断状态被设为true, 除此之外，不会发生任何事。</li>
+<li>若被中断前，该线程处于阻塞状态(调用了wait,sleep,join等方法)，那么该线程将会立即从阻塞状态中退出，并抛出一个InterruptedException异常，同时，该线程的中断状态被设为false, 除此之外，不会发生任何事。</li>
+</ul>
+<p>无论是中断状态的改变还是InterruptedException被抛出，这些都是当前线程可以感知到的”建议”，如果当前线程选择忽略这些建议(例如简单地catch住异常继续执行)，那么中断机制对于当前线程就没有任何影响，就好像什么也没有发生一样。</p>
+<p>所以，中断一个线程，只是传递了请求中断的消息，并不会直接阻止一个线程的运行。</p>
+
+      
+    </div>
+    
+    
+    
+	
+	<div>
+	
+		<div>
+    
+        <div style="text-align:center;color: #ccc;font-size:14px;">-------------本文结束<i class="fa fa-paw"></i>感谢您的阅读-------------</div>
+    
+</div>
+	
+	</div>
+
+    
+      <div>
+        <div id="wechat_subscriber" style="display: block; padding: 10px 0; margin: 20px auto; width: 100%; text-align: center">
+    <img id="wechat_subscriber_qcode" src="/uploads/wechat-qcode.jpg" alt="Ruan Shubin wechat" style="width: 200px; max-width: 100%;">
+    <div>欢迎您扫一扫上面的二维码，关注我的微信公众号！</div>
+</div>
+
+      </div>
+    
+
+    
+
+    
+      <div>
+        <ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者：</strong>
+    Ruan Shubin
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="http://ruanshubin.top/2019/11/07/Thread类源码解读3——线程中断interrupt/" title="Thread类源码解读3--线程中断interrupt">http://ruanshubin.top/2019/11/07/Thread类源码解读3——线程中断interrupt/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>
+    本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/" rel="external nofollow" target="_blank">CC BY-NC-SA 3.0</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+
+      </div>
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Java/" rel="tag"><i class="fa fa-tag"></i> Java</a>
+          
+            <a href="/tags/并发/" rel="tag"><i class="fa fa-tag"></i> 并发</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/11/06/Thread类源码解读2——线程状态及常用方法/" rel="next" title="Thread类源码解读2--线程状态及常用方法">
+                <i class="fa fa-chevron-left"></i> Thread类源码解读2--线程状态及常用方法
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/11/08/逐行分析AQS源码3——共享锁的获取与释放/" rel="prev" title="逐行分析AQS源码3--共享锁的获取与释放">
+                逐行分析AQS源码3--共享锁的获取与释放 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+        <!-- JiaThis Button BEGIN -->
+<div class="jiathis_style">
+<span class="jiathis_txt">分享到：</span>
+<a class="jiathis_button_weixin">微信</a>
+<a class="jiathis_button_qzone">QQ空间</a>
+<a class="jiathis_button_tsina">新浪微博</a>
+<a class="jiathis_button_zhihu">知乎</a>
+<a class="jiathis_button_share">一键分享</a>
+
+<a href="http://www.jiathis.com/share?uid=2140465" class="jiathis jiathis_txt jiathis_separator jtico jtico_jiathis" target="_blank">更多</a>
+<a class="jiathis_counter_style"></a>
+</div>
+<script type="text/javascript">
+var jiathis_config={
+  data_track_clickback:true,
+  summary:"",
+  shortUrl:false,
+  hideMore:false
+}
+</script>
+<script type="text/javascript" src="http://v3.jiathis.com/code/jia.js?uid=" charset="utf-8"></script>
+<!-- JiaThis Button END -->
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+    <div class="comments" id="comments">
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8zMzc1NC8xMDMwOA"></div>
+    </div>
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/avatar.gif" alt="Ruan Shubin">
+            
+              <p class="site-author-name" itemprop="name">Ruan Shubin</p>
+              <p class="site-description motion-element" itemprop="description">一万年太久，只争朝夕！</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives">
+              
+                  <span class="site-state-item-count">55</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">13</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">29</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+            <div class="feed-link motion-element">
+              <a href="/atom.xml" rel="alternate">
+                <i class="fa fa-rss"></i>
+                RSS
+              </a>
+            </div>
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/Ruanshubin" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://weibo.com/u/2487162561" target="_blank" title="Weibo">
+                      
+                        <i class="fa fa-fw fa-weibo"></i>Weibo</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://blog.csdn.net/wenwu_both" target="_blank" title="CSDN">
+                      
+                        <i class="fa fa-fw fa-book"></i>CSDN</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="http://tcrl.zju.edu.cn/" target="_blank" title="Lab">
+                      
+                        <i class="fa fa-fw fa-users"></i>Lab</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Interrupt-status-amp-InterruptedException"><span class="nav-number">1.</span> <span class="nav-text">Interrupt status &amp; InterruptedException</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#interrupt-status"><span class="nav-number">1.1.</span> <span class="nav-text">interrupt status</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#InterruptedException"><span class="nav-number">1.2.</span> <span class="nav-text">InterruptedException</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#interrupt"><span class="nav-number">2.</span> <span class="nav-text">interrupt</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#终止一个线程"><span class="nav-number">3.</span> <span class="nav-text">终止一个线程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#终止处于阻塞状态的线程"><span class="nav-number">3.1.</span> <span class="nav-text">终止处于阻塞状态的线程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#终止处于运行状态的线程"><span class="nav-number">3.2.</span> <span class="nav-text">终止处于运行状态的线程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#终止一个Alive的线程"><span class="nav-number">3.3.</span> <span class="nav-text">终止一个Alive的线程</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">4.</span> <span class="nav-text">总结</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Ruan Shubin</span>
+
+  
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    
+      <span class="post-meta-item-text">全站总字数&#58;</span>
+    
+    <span title="全站总字数">137.8k</span>
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Pisces</a> v5.1.4</div>
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+
+  
+</div>
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  <script type="text/javascript">
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url);
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x" /></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x" /></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+  
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdn.bootcss.com/mathjax/2.7.1/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+
+  
+
+  
+
+</body>
+</html>
